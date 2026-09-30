@@ -1,10 +1,10 @@
-# Long-running services of the engine (Redis, Postgres, MCP, Cloudflare Tunnel). Data lives under work/ (git-ignored) so the
+# Long-running services of the engine (Redis, Postgres, MCP, panel, Cloudflare Tunnel). Data lives under work/ (git-ignored) so the
 # whole setup moves to another machine by copying the repo, work/ and .env.
 #
 #   docker compose up -d        # start (containers restart on their own after a reboot)
 #   docker compose ps
 #   docker compose logs -f redis
-#   docker compose up -d --build mcp   # after changing the MCP server or packages
+#   docker compose up -d --build mcp panel   # after changing the MCP server, the panel or packages
 #   docker compose logs -f cloudflared # tunnel status (public hostname is set in the Cloudflare dashboard)
 
 name: ai-knowledge-engine
@@ -73,6 +73,34 @@ services:
       VOYAGE_MODEL: ${VOYAGE_MODEL:-voyage-4-large}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # Admin panel (Next.js): users and tokens, usage, queries, search console.
+  panel:
+    build:
+      context: .
+      dockerfile: apps/panel/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${PANEL_PORT:-3100}:3100"
+    environment:
+      PANEL_PASSWORD: ${PANEL_PASSWORD:?.env içinde PANEL_PASSWORD tanımlı olmalı}
+      PANEL_SECRET: ${PANEL_SECRET:?.env içinde PANEL_SECRET tanımlı olmalı}
+      DATABASE_URL: postgres://kb:${POSTGRES_PASSWORD}@postgres:5432/kb
+      REDIS_URL: redis://redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY}
+      VOYAGE_API_URL: ${VOYAGE_API_URL}
+      VOYAGE_MODEL: ${VOYAGE_MODEL:-voyage-4-large}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3100/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 3

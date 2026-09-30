@@ -4,3 +4,5 @@ work
 deploy/kbsync.env
 .git
 **/.DS_Store
+**/.next
+**/*.tsbuildinfo
