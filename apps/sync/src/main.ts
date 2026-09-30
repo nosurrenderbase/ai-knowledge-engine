@@ -28,7 +28,9 @@ async function main(): Promise<void> {
     const search = loadSearchConfig(process.env, cfg.area);
     const client = createClient({url: search.redisUrl, password: search.redisPassword});
     client.on('error', e => log('warn', 'redis bağlantı hatası', {error: (e as Error).message}));
-    await client.connect();
+    // Not awaited: after a reboot Docker (and Redis) may come up after this worker.
+    // Syncing starts right away; indexing waits until the client is ready.
+    client.connect().catch(e => log('warn', 'redis bağlanamadı', {error: (e as Error).message}));
     closeRedis = async () => void (await client.quit());
     indexer = new KbIndexer({cfg, client, embedder: new Voyage(search.voyage), target: search.target, cacheDir: search.cacheDir, log, alert});
   } else {

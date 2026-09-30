@@ -143,6 +143,21 @@ describe('MCP over HTTP', {skip: redis ? false : 'yerel Redis yok (docker compos
     assert.doesNotMatch(flows.text, /genel-bakis/);
   });
 
+  it('reports 503 on health and refuses tool calls while the store is not ready', async () => {
+    let ready = false;
+    const services = {store: new KbStore(redis!, target), search: {client: redis!, voyage: embedder, spec: target, model: 'fake'}};
+    const s = createHttpServer(services, {token: TOKEN, log: () => {}, ready: () => ready});
+    await new Promise<void>(r => s.listen(0, '127.0.0.1', r));
+    const base = `http://127.0.0.1:${(s.address() as AddressInfo).port}`;
+    assert.equal((await fetch(`${base}/health`)).status, 503);
+    const call = await fetch(`${base}/mcp`, {method: 'POST', headers: {authorization: `Bearer ${TOKEN}`}, body: '{}'});
+    assert.equal(call.status, 503);
+    assert.match(JSON.stringify(await call.json()), /erişilemiyor/);
+    ready = true;
+    assert.equal((await fetch(`${base}/health`)).status, 200);
+    await new Promise(r => s.close(r));
+  });
+
   it('rejects requests without the token, non-POST methods and bad JSON; health needs no token', async () => {
     const noAuth = await fetch(url, {method: 'POST', headers: {'content-type': 'application/json'}, body: '{}'});
     assert.equal(noAuth.status, 401);

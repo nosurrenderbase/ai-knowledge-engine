@@ -23,7 +23,8 @@ if (!token) {
 const cfg = loadSearchConfig(process.env);
 const client = createClient({url: cfg.redisUrl, password: cfg.redisPassword});
 client.on('error', e => log('warn', 'redis bağlantı hatası', {error: (e as Error).message}));
-await client.connect();
+// Not awaited: listen right away (health reports 503) and let the client keep retrying.
+client.connect().catch(e => log('warn', 'redis bağlanamadı', {error: (e as Error).message}));
 
 const services = {
   store: new KbStore(client, cfg.target),
@@ -39,7 +40,7 @@ const services = {
 
 const port = Number(process.env.MCP_PORT ?? 8787);
 const host = process.env.MCP_HOST ?? '127.0.0.1';
-const server = createHttpServer(services, {token, log});
+const server = createHttpServer(services, {token, log, ready: () => client.isReady});
 server.listen(port, host, () => log('info', 'mcp dinliyor', {url: `http://${host}:${port}/mcp`, index: cfg.target.name}));
 
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {

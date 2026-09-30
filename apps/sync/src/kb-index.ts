@@ -34,6 +34,11 @@ export class KbIndexer {
 
   async reconcile(): Promise<ReconcileResult> {
     const {cfg, log} = this.deps;
+    if (!this.deps.client.isReady) {
+      // Redis still starting (e.g. right after a reboot): try again next tick, no alert yet.
+      log('info', 'arama indeksi bekliyor: redis hazır değil');
+      return 'failed';
+    }
     try {
       const kb = new Git(cfg.kbRepo);
       const head = await kb.remoteHead(cfg.kbRemote, cfg.kbBranch);

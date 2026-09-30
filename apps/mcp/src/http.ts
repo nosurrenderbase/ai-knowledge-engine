@@ -11,6 +11,8 @@ export interface HttpOptions {
   /** Required bearer token; null disables auth (tests only). */
   token: string | null;
   log: (level: 'info' | 'warn' | 'error', msg: string, fields?: Record<string, unknown>) => void;
+  /** Whether the data store is reachable; while false, /health is 503 and /mcp refuses politely. */
+  ready?: () => boolean;
 }
 
 const MAX_BODY = 1024 * 1024;
@@ -54,7 +56,8 @@ const rpcError = (code: number, message: string) => ({jsonrpc: '2.0', error: {co
 export function createHttpServer(services: Services, opts: HttpOptions): http.Server {
   return http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
-    if (url.pathname === '/health') return json(res, 200, {ok: true});
+    const ready = opts.ready?.() ?? true;
+    if (url.pathname === '/health') return json(res, ready ? 200 : 503, {ok: ready});
     if (url.pathname !== '/mcp') return json(res, 404, {error: 'bulunamadı'});
     if (!authorized(req, opts.token)) {
       res.setHeader('www-authenticate', 'Bearer');
@@ -62,6 +65,7 @@ export function createHttpServer(services: Services, opts: HttpOptions): http.Se
     }
     // Stateless server: no server-initiated streams, no sessions to delete.
     if (req.method !== 'POST') return json(res, 405, rpcError(-32000, 'yalnız POST'));
+    if (!ready) return json(res, 503, rpcError(-32002, 'bilgi tabanı şu an erişilemiyor, biraz sonra tekrar dene'));
 
     let body: unknown;
     try {

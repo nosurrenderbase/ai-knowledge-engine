@@ -93,6 +93,23 @@ describe('KbIndexer', {skip}, () => {
     assert.equal((await readMeta(client!, target)).commit, git(fx.kbSeed, 'rev-parse', 'HEAD'));
   });
 
+  it('skips quietly while Redis is not ready (right after a reboot)', async () => {
+    const logs: string[] = [];
+    const notReady = new KbIndexer({
+      cfg: fx.cfg,
+      client: {isReady: false} as unknown as RedisClient,
+      embedder,
+      target,
+      cacheDir: null,
+      log: (_level, msg) => void logs.push(msg),
+      alert: async m => void alerts.push(m),
+    });
+    for (let i = 0; i < 5; i++) assert.equal(await notReady.reconcile(), 'failed');
+    assert.equal(alerts.length, 0);
+    assert.equal(embedder.texts, 0);
+    assert.match(logs[0], /redis hazır değil/);
+  });
+
   it('never throws, retries next time and alerts once after three failures in a row', async () => {
     embedder.fail = true;
     for (let i = 0; i < 4; i++) assert.equal(await indexer.reconcile(), 'failed');
