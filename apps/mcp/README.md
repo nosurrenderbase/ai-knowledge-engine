@@ -15,7 +15,7 @@ Sunucu, nasıl kullanılacağını anlatan talimatları (`instructions`) da gön
 
 ## Çalıştırma
 
-`compose.yaml` ile Redis'in yanında çalışır; yalnız `127.0.0.1:8787`'den erişilir ve `MCP_TOKEN` ister.
+`compose.yaml` ile Redis'in yanında çalışır ve `MCP_TOKEN` ister. Makinede `127.0.0.1:8787`'den, dışarıdan Cloudflare Tunnel (`cloudflared` servisi) üzerinden **https://mcp.efsanebaskan.com/mcp** adresinden erişilir.
 
 ```bash
 docker compose up -d --build mcp
@@ -27,10 +27,10 @@ Geliştirirken doğrudan: `npm start -w @ai-knowledge-engine/mcp` (repodaki `.en
 ## Claude Code'a eklemek
 
 ```bash
-claude mcp add --transport http efsane-kb http://127.0.0.1:8787/mcp --header "Authorization: Bearer <MCP_TOKEN>"
+claude mcp add --transport http efsane-kb https://mcp.efsanebaskan.com/mcp --header "Authorization: Bearer <MCP_TOKEN>"
 ```
 
-claude.ai (web/Desktop) için sunucunun internetten erişilebilir olması ve OAuth gerekir; henüz yapılmadı.
+claude.ai (web/Desktop) bağlantısı OAuth ister; henüz yapılmadı.
 
 ## Testler
 
