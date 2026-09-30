@@ -4,6 +4,7 @@
  * (Redis client, embedder, caches) are shared through `Services`.
  */
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
+import type {Principal, UsageEvent} from '@ai-knowledge-engine/accounts';
 import {search, type SearchContext} from '@ai-knowledge-engine/search';
 import {z} from 'zod';
 import type {KbStore} from './kb-store.ts';
@@ -27,6 +28,22 @@ Cevap verirken:
 export interface Services {
   store: KbStore;
   search: SearchContext;
+  /** Records a tool call (fire-and-forget; failures are only logged). */
+  usage?: (event: UsageEvent) => Promise<void>;
+  log?: (level: 'info' | 'warn' | 'error', msg: string, fields?: Record<string, unknown>) => void;
+}
+
+/** Who is calling, from the token, and with what client (User-Agent). */
+export interface Caller {
+  principal: Principal;
+  client: string | null;
+}
+
+interface ToolOutcome {
+  text: string;
+  isError?: boolean;
+  /** What to remember about the answer: counts, document paths. */
+  summary: Record<string, unknown>;
 }
 
 const oneLine = (s: string, max: number) => {
@@ -34,11 +51,37 @@ const oneLine = (s: string, max: number) => {
   return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 };
 
-const text = (t: string) => ({content: [{type: 'text' as const, text: t}]});
 const readOnly = {readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false};
 
-export function buildServer(services: Services): McpServer {
+export function buildServer(services: Services, caller: Caller): McpServer {
   const server = new McpServer({name: 'efsane-baskan-kb', version: '1.0.0'}, {instructions: INSTRUCTIONS});
+
+  /** Runs a tool, records the call, and shapes the MCP result. */
+  const tracked = async (tool: string, input: Record<string, unknown>, fn: () => Promise<ToolOutcome>) => {
+    const started = performance.now();
+    let outcome: ToolOutcome;
+    let error: string | null = null;
+    try {
+      outcome = await fn();
+      if (outcome.isError) error = outcome.text;
+    } catch (e) {
+      error = (e as Error).message;
+      outcome = {text: `Araç hatası: ${error}`, isError: true, summary: {count: 0}};
+    }
+    services
+      .usage?.({
+        userId: caller.principal.userId,
+        tokenId: caller.principal.tokenId,
+        tool,
+        input,
+        result: outcome.summary,
+        durationMs: performance.now() - started,
+        error,
+        client: caller.client,
+      })
+      .catch(e => services.log?.('warn', 'kullanım kaydı yazılamadı', {error: (e as Error).message}));
+    return {content: [{type: 'text' as const, text: outcome.text}], ...(outcome.isError ? {isError: true} : {})};
+  };
 
   server.registerTool(
     'search',
@@ -56,19 +99,21 @@ export function buildServer(services: Services): McpServer {
       },
       annotations: readOnly,
     },
-    async ({query, module, kind, include_removed, limit}) => {
-      const hits = await search(services.search, query, {
-        limit: limit ?? 8,
-        filters: {module, kind, includeRemoved: include_removed},
-      });
-      if (hits.length === 0) return text(`"${query}" için sonuç yok. Farklı kelimelerle ara ya da grep dene.`);
-      const commit = (await services.store.commit()).slice(0, 8);
-      const lines = hits.map(
-        (h, i) =>
-          `${i + 1}. **${h.title}** — \`${h.path}\`${h.section ? ` › ${h.section}` : ''}${h.status ? ` [${h.status}]` : ''}\n   ${oneLine(h.text, 400)}`,
-      );
-      return text(`${hits.length} sonuç (bilgi tabanı commit ${commit}):\n\n${lines.join('\n\n')}\n\nCevap için ilgili dokümanı read_doc ile oku.`);
-    },
+    async ({query, module, kind, include_removed, limit}) =>
+      tracked('search', {query, module, kind, include_removed, limit}, async () => {
+        const hits = await search(services.search, query, {
+          limit: limit ?? 8,
+          filters: {module, kind, includeRemoved: include_removed},
+        });
+        const summary = {count: hits.length, paths: [...new Set(hits.map(h => h.path))].slice(0, 5)};
+        if (hits.length === 0) return {text: `"${query}" için sonuç yok. Farklı kelimelerle ara ya da grep dene.`, summary};
+        const commit = (await services.store.commit()).slice(0, 8);
+        const lines = hits.map(
+          (h, i) =>
+            `${i + 1}. **${h.title}** — \`${h.path}\`${h.section ? ` › ${h.section}` : ''}${h.status ? ` [${h.status}]` : ''}\n   ${oneLine(h.text, 400)}`,
+        );
+        return {text: `${hits.length} sonuç (bilgi tabanı commit ${commit}):\n\n${lines.join('\n\n')}\n\nCevap için ilgili dokümanı read_doc ile oku.`, summary};
+      }),
   );
 
   server.registerTool(
@@ -81,11 +126,12 @@ export function buildServer(services: Services): McpServer {
       inputSchema: {path: z.string().min(1).describe('Doküman yolu, ör. flows/pvp/gunluk-hak.md ya da genel/genel-bakis.md')},
       annotations: readOnly,
     },
-    async ({path}) => {
-      const doc = await services.store.getDoc(path);
-      if (!doc) return {...text(`"${path}" bulunamadı. Yolu search ya da list_docs ile bul.`), isError: true};
-      return text(doc.text);
-    },
+    async ({path}) =>
+      tracked('read_doc', {path}, async () => {
+        const doc = await services.store.getDoc(path);
+        if (!doc) return {text: `"${path}" bulunamadı. Yolu search ya da list_docs ile bul.`, isError: true, summary: {count: 0}};
+        return {text: doc.text, summary: {count: 1, paths: [doc.path]}};
+      }),
   );
 
   server.registerTool(
@@ -102,12 +148,17 @@ export function buildServer(services: Services): McpServer {
       },
       annotations: readOnly,
     },
-    async ({pattern: needle, prefix, limit}) => {
-      const {matches, truncated} = await services.store.grep(needle, {prefix, limit});
-      if (matches.length === 0) return text(`"${needle}" hiçbir dokümanda geçmiyor.`);
-      const lines = matches.map(m => `${m.path}:${m.line}: ${m.text}`);
-      return text(`${matches.length}${truncated ? '+' : ''} eşleşme:\n${lines.join('\n')}${truncated ? '\n\n(Liste kısaltıldı; prefix ile daralt.)' : ''}`);
-    },
+    async ({pattern: needle, prefix, limit}) =>
+      tracked('grep', {pattern: needle, prefix, limit}, async () => {
+        const {matches, truncated} = await services.store.grep(needle, {prefix, limit});
+        const summary = {count: matches.length, truncated, paths: [...new Set(matches.map(m => m.path))].slice(0, 5)};
+        if (matches.length === 0) return {text: `"${needle}" hiçbir dokümanda geçmiyor.`, summary};
+        const lines = matches.map(m => `${m.path}:${m.line}: ${m.text}`);
+        return {
+          text: `${matches.length}${truncated ? '+' : ''} eşleşme:\n${lines.join('\n')}${truncated ? '\n\n(Liste kısaltıldı; prefix ile daralt.)' : ''}`,
+          summary,
+        };
+      }),
   );
 
   server.registerTool(
@@ -120,12 +171,13 @@ export function buildServer(services: Services): McpServer {
       inputSchema: {prefix: z.string().optional().describe('Ör. genel/, flows/lig/, modules/')},
       annotations: readOnly,
     },
-    async ({prefix}) => {
-      const docs = await services.store.list(prefix ?? '');
-      if (docs.length === 0) return text(`"${prefix ?? ''}" altında doküman yok.`);
-      const lines = docs.map(d => `${d.path} — ${d.title}${d.status ? ` [${d.status}]` : ''}`);
-      return text(`${docs.length} doküman:\n${lines.join('\n')}`);
-    },
+    async ({prefix}) =>
+      tracked('list_docs', {prefix}, async () => {
+        const docs = await services.store.list(prefix ?? '');
+        if (docs.length === 0) return {text: `"${prefix ?? ''}" altında doküman yok.`, summary: {count: 0}};
+        const lines = docs.map(d => `${d.path} — ${d.title}${d.status ? ` [${d.status}]` : ''}`);
+        return {text: `${docs.length} doküman:\n${lines.join('\n')}`, summary: {count: docs.length}};
+      }),
   );
 
   return server;

@@ -1,4 +1,4 @@
-# Long-running services of the engine. Data lives under work/ (git-ignored) so the
+# Long-running services of the engine (Redis, Postgres, MCP, Cloudflare Tunnel). Data lives under work/ (git-ignored) so the
 # whole setup moves to another machine by copying the repo, work/ and .env.
 #
 #   docker compose up -d        # start (containers restart on their own after a reboot)
@@ -28,6 +28,25 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     stop_grace_period: 30s
 
+  # Users, per-person tokens and usage records (and later the admin panel).
+  postgres:
+    image: postgres:18.6-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    environment:
+      POSTGRES_USER: kb
+      POSTGRES_DB: kb
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?.env içinde POSTGRES_PASSWORD tanımlı olmalı}
+    volumes:
+      - ./work/postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kb -d kb"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    stop_grace_period: 30s
+
   mcp:
     build:
       context: .
@@ -36,12 +55,17 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     ports:
       - "127.0.0.1:${MCP_PORT:-8787}:8787"
     environment:
       MCP_HOST: 0.0.0.0
       MCP_PORT: "8787"
-      MCP_TOKEN: ${MCP_TOKEN:?.env içinde MCP_TOKEN tanımlı olmalı}
+      # Old shared token, accepted during the switch to personal tokens; remove to turn it off.
+      MCP_TOKEN: ${MCP_TOKEN:-}
+      DATABASE_URL: postgres://kb:${POSTGRES_PASSWORD}@postgres:5432/kb
+      USAGE_RETENTION_DAYS: ${USAGE_RETENTION_DAYS:-90}
       REDIS_URL: redis://redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       VOYAGE_API_KEY: ${VOYAGE_API_KEY:?.env içinde VOYAGE_API_KEY tanımlı olmalı}

@@ -1,0 +1,19 @@
+{
+  "name": "@ai-knowledge-engine/accounts",
+  "private": true,
+  "type": "module",
+  "description": "Kullanıcılar, kişiye özel token'lar ve kullanım kaydı (Postgres)",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "users": "node src/cli.ts",
+    "test": "node --test --test-concurrency=1 \"test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "pg": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.0"
+  }
+}

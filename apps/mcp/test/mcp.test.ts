@@ -11,6 +11,7 @@ import {after, before, describe, it} from 'node:test';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import {createClient} from 'redis';
+import type {Principal, UsageEvent} from '@ai-knowledge-engine/accounts';
 import {dropIndex, loadDotEnv, loadSearchConfig, syncIndex, type Embedder, type IndexTarget, type RedisClient} from '@ai-knowledge-engine/search';
 import {createHttpServer} from '../src/http.ts';
 import {KbStore, normalizeDocPath} from '../src/kb-store.ts';
@@ -64,7 +65,10 @@ if (process.env.REDIS_PASSWORD) {
 describe('MCP over HTTP', {skip: redis ? false : 'yerel Redis yok (docker compose up -d)'}, () => {
   const name = `test:mcp:${process.pid}:${Date.now()}`;
   const target: IndexTarget = {name, prefix: `${name}:c:`, dimension: DIM, model: 'fake'};
-  const TOKEN = 'test-token';
+  const TOKEN = 'kb_0123abcd_test';
+  const principal: Principal = {userId: 7, tokenId: 70, name: 'Ahmet'};
+  const authenticate = async (t: string) => (t === TOKEN ? principal : null);
+  const events: UsageEvent[] = [];
   let area: string;
   let server: ReturnType<typeof createHttpServer>;
   let url: URL;
@@ -82,8 +86,12 @@ describe('MCP over HTTP', {skip: redis ? false : 'yerel Redis yok (docker compos
       if (Number(info[info.indexOf('percent_indexed') + 1]) >= 1) break;
       await new Promise(r => setTimeout(r, 50));
     }
-    const services = {store: new KbStore(redis!, target), search: {client: redis!, voyage: embedder, spec: target, model: 'fake'}};
-    server = createHttpServer(services, {token: TOKEN, log: () => {}});
+    const services = {
+      store: new KbStore(redis!, target),
+      search: {client: redis!, voyage: embedder, spec: target, model: 'fake'},
+      usage: async (e: UsageEvent) => void events.push(e),
+    };
+    server = createHttpServer(services, {authenticate, log: () => {}});
     await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
     url = new URL(`http://127.0.0.1:${(server.address() as AddressInfo).port}/mcp`);
     client = new Client({name: 'test', version: '1'});
@@ -146,7 +154,7 @@ describe('MCP over HTTP', {skip: redis ? false : 'yerel Redis yok (docker compos
   it('reports 503 on health and refuses tool calls while the store is not ready', async () => {
     let ready = false;
     const services = {store: new KbStore(redis!, target), search: {client: redis!, voyage: embedder, spec: target, model: 'fake'}};
-    const s = createHttpServer(services, {token: TOKEN, log: () => {}, ready: () => ready});
+    const s = createHttpServer(services, {authenticate, log: () => {}, ready: () => ready});
     await new Promise<void>(r => s.listen(0, '127.0.0.1', r));
     const base = `http://127.0.0.1:${(s.address() as AddressInfo).port}`;
     assert.equal((await fetch(`${base}/health`)).status, 503);
@@ -155,6 +163,40 @@ describe('MCP over HTTP', {skip: redis ? false : 'yerel Redis yok (docker compos
     assert.match(JSON.stringify(await call.json()), /erişilemiyor/);
     ready = true;
     assert.equal((await fetch(`${base}/health`)).status, 200);
+    await new Promise(r => s.close(r));
+  });
+
+  it('records every tool call with who asked, what, what came back and the client', async () => {
+    events.length = 0;
+    await callText('search', {query: 'günde kaç pvp maçı', limit: 3});
+    await callText('read_doc', {path: 'flows/yok.md'});
+    await new Promise(r => setImmediate(r));
+    assert.equal(events.length, 2);
+    const [s, r] = events;
+    assert.equal(s.userId, 7);
+    assert.equal(s.tokenId, 70);
+    assert.equal(s.tool, 'search');
+    assert.equal(s.input.query, 'günde kaç pvp maçı');
+    assert.ok(Number(s.result.count) > 0);
+    assert.equal((s.result.paths as string[])[0], 'flows/pvp/gunluk-hak.md');
+    assert.ok(s.durationMs >= 0);
+    assert.equal(s.error, null);
+    assert.ok(s.client, 'istemci (User-Agent) kaydedilir');
+    assert.equal(r.tool, 'read_doc');
+    assert.match(r.error ?? '', /bulunamadı/);
+  });
+
+  it('answers 503 (not 401) when the token store is down', async () => {
+    const services = {store: new KbStore(redis!, target), search: {client: redis!, voyage: embedder, spec: target, model: 'fake'}};
+    const s = createHttpServer(services, {
+      authenticate: async () => {
+        throw new Error('postgres kapalı');
+      },
+      log: () => {},
+    });
+    await new Promise<void>(r => s.listen(0, '127.0.0.1', r));
+    const res = await fetch(`http://127.0.0.1:${(s.address() as AddressInfo).port}/mcp`, {method: 'POST', headers: {authorization: `Bearer ${TOKEN}`}, body: '{}'});
+    assert.equal(res.status, 503);
     await new Promise(r => s.close(r));
   });
 

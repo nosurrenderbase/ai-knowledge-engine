@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "sync": "npm start -w @ai-knowledge-engine/sync",
     "gen:cards": "npm run gen:cards -w @ai-knowledge-engine/kb --",
-    "build:chunks": "npm run build:chunks -w @ai-knowledge-engine/kb --"
+    "build:chunks": "npm run build:chunks -w @ai-knowledge-engine/kb --",
+    "users": "npm run users -w @ai-knowledge-engine/accounts --"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

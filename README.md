@@ -7,11 +7,12 @@ Efsane Başkan bilgi tabanını ([`ai-knowledge-base`](https://github.com/nosurr
 | [`apps/sync`](apps/sync/README.md) | **kbsync**: kod reposunun main'ini yoklar, her merge'ü sırayla işleyip bilgi tabanını Claude Code ile günceller, doğrular, push eder |
 | [`apps/mcp`](apps/mcp/README.md) | MCP sunucusu: `search`, `read_doc`, `grep`, `list_docs`; compose ile Redis'in yanında çalışır |
 | [`packages/kb`](packages/kb/src/index.ts) | Ortak parçalar: doküman okuma, use case kartı üreticisi, chunk'lama |
+| [`packages/accounts`](packages/accounts/src/cli.ts) | Kullanıcılar, kişiye özel token'lar, kullanım kaydı (Postgres); `npm run users` |
 | [`packages/search`](packages/search/src/index.ts) | Arama: Voyage embedding (voyage-4-large), Redis indeksi (vektör + Türkçe tam metin), hibrit sorgu, indeks senkronu, arama ölçümü |
 | [`prompts/backend`](prompts/backend) | `PROMPT.md` (elle modül dokümanı üretimi), `UPDATE-PROMPT.md` (otomatik güncelleme kuralları ve sistem prompt'u), `TEMPLATE-flow.md` |
 | [`docs/EMBEDDING.md`](docs/EMBEDDING.md) | Parça biçimi ve arama önerileri |
 | [`deploy`](deploy) | Çalıştırma betiği, launchd şablonu, örnek ayar dosyası, Redis ayarları |
-| [`compose.yaml`](compose.yaml) | Uzun süre çalışan servisler: Redis ve MCP sunucusu |
+| [`compose.yaml`](compose.yaml) | Uzun süre çalışan servisler: Redis, Postgres, MCP sunucusu, Cloudflare Tunnel |
 | `work/` | (git dışı) işçinin klonları ve logları |
 
 ## Komutlar
@@ -26,7 +27,10 @@ npm run build:chunks -- --kb <KB>/backend --out chunks.jsonl
 
 deploy/run.sh once        # işçiyi bir tur çalıştır (deploy/kbsync.env ile)
 
-docker compose up -d      # Redis + MCP (http://127.0.0.1:8787/mcp); parolalar .env'de (.env.example'dan kopyala)
+docker compose up -d      # Redis + Postgres + MCP + tünel; parolalar .env'de (.env.example'dan kopyala)
+
+npm run users -- add "Ad Soyad" --email ad@nosurrender.studio   # kişiye özel MCP token'ı
+npm run users -- list | usage | queries [--empty]              # kullanıcılar, kullanım, sorular
 
 npm run index -w @ai-knowledge-engine/search -- search "günde kaç pvp maçı"   # indekste ara
 npm run index -w @ai-knowledge-engine/search -- status                       # indeks hangi KB commit'inde
