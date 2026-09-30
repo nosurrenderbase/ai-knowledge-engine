@@ -1,0 +1,27 @@
+# Long-running services of the engine. Data lives under work/ (git-ignored) so the
+# whole setup moves to another machine by copying the repo, work/ and .env.
+#
+#   docker compose up -d        # start (containers restart on their own after a reboot)
+#   docker compose ps
+#   docker compose logs -f redis
+
+name: ai-knowledge-engine
+
+services:
+  redis:
+    image: redis:8.10.2
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD:?.env içinde REDIS_PASSWORD tanımlı olmalı}"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6380}:6379"
+    volumes:
+      - ./deploy/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - ./work/redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    stop_grace_period: 30s

@@ -3,3 +3,4 @@ work/
 deploy/kbsync.env
 chunks.jsonl
 .DS_Store
+.env
