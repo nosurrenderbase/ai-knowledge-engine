@@ -5,6 +5,7 @@
 #   docker compose ps
 #   docker compose logs -f redis
 #   docker compose up -d --build mcp   # after changing the MCP server or packages
+#   docker compose logs -f cloudflared # tunnel status (public hostname is set in the Cloudflare dashboard)
 
 name: ai-knowledge-engine
 
@@ -51,3 +52,16 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
+
+  # Cloudflare Tunnel: publishes the MCP server over HTTPS without opening any port on
+  # this machine. Remotely managed: the public hostname → http://mcp:8787 route is set
+  # in Cloudflare Zero Trust > Networks > Tunnels; only the token lives here.
+  cloudflared:
+    image: cloudflare/cloudflared:2026.9.3
+    command: ["tunnel", "--no-autoupdate", "--metrics", "0.0.0.0:2000", "run"]
+    restart: unless-stopped
+    depends_on:
+      mcp:
+        condition: service_healthy
+    environment:
+      TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN:?.env içinde CF_TUNNEL_TOKEN tanımlı olmalı}
