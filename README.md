@@ -6,7 +6,7 @@ Efsane Başkan bilgi tabanını ([`ai-knowledge-base`](https://github.com/nosurr
 |---|---|
 | [`apps/sync`](apps/sync/README.md) | **kbsync**: kod reposunun main'ini yoklar, her merge'ü sırayla işleyip bilgi tabanını Claude Code ile günceller, doğrular, push eder |
 | `apps/mcp` | MCP sunucusu (sonra) |
-| `apps/indexer` | Parçaları vektör DB'ye yükleyen seeder (sonra) |
+| `apps/indexer` | Voyage istemcisi, Redis indeks şeması ve arama ölçümü (`npm run eval -w @ai-knowledge-engine/indexer`); yükleyici sonra |
 | [`packages/kb`](packages/kb/src/index.ts) | Ortak parçalar: doküman okuma, use case kartı üreticisi, chunk'lama |
 | [`prompts/backend`](prompts/backend) | `PROMPT.md` (elle modül dokümanı üretimi), `UPDATE-PROMPT.md` (otomatik güncelleme kuralları ve sistem prompt'u), `TEMPLATE-flow.md` |
 | [`docs/EMBEDDING.md`](docs/EMBEDDING.md) | Parça biçimi ve arama önerileri |

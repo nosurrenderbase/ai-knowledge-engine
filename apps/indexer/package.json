@@ -1,0 +1,14 @@
+{
+  "name": "@ai-knowledge-engine/indexer",
+  "private": true,
+  "type": "module",
+  "description": "Bilgi tabanı parçalarını embed edip Redis'e (vektör + tam metin) yükler",
+  "scripts": {
+    "eval": "node eval/retrieval.ts",
+    "test": "node --test \"test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@ai-knowledge-engine/kb": "*",
+    "redis": "^5.8.0"
+  }
+}
