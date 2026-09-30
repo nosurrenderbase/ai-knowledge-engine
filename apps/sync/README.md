@@ -25,7 +25,7 @@ Bilgi tabanını kod reposuyla senkron tutan işçi. Kod reposunun `main`'ini yo
 ## Kurulum
 
 ```bash
-git clone git@github.com:nos-ai-bot/ai-knowledge-engine.git && cd ai-knowledge-engine
+git clone git@github.com:nosurrenderbase/ai-knowledge-engine.git && cd ai-knowledge-engine
 npm ci
 git clone git@github.com:nosurrenderbase/ai-knowledge-base.git work/kb
 git clone git@github.com:nosurrenderbase/nestjs-boilerplate.git work/code
