@@ -4,3 +4,6 @@ deploy/kbsync.env
 chunks.jsonl
 .DS_Store
 .env
+.next/
+next-env.d.ts
+*.tsbuildinfo

@@ -1,3 +1,12 @@
+/**
+ * Schema migrations, applied in order and each once (see migrate in db.ts).
+ * Kept in code rather than .sql files so they survive any bundler (the panel
+ * is bundled by Next.js). Never edit an applied migration; add a new one.
+ */
+export const MIGRATIONS: {version: string; sql: string}[] = [
+  {
+    version: '001_accounts',
+    sql: `
 -- People who may use the knowledge base, their personal tokens and what they did with them.
 
 create table users (
@@ -47,3 +56,6 @@ create table usage_daily (
   errors  integer not null default 0,
   primary key (day, user_id, tool)
 );
+`,
+  },
+];

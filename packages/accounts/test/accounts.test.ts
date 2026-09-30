@@ -7,7 +7,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {after, before, describe, it} from 'node:test';
 import {createDb, databaseUrl, migrate, type Db} from '../src/db.ts';
-import {purgeUsage, recentQueries, recordUsage, usageSummary} from '../src/usage.ts';
+import {dailyTotals, overview, purgeUsage, recentQueries, recordUsage, usageSummary} from '../src/usage.ts';
 import {addUser, findUser, issueToken, listTokens, listUsers, newToken, revokeToken, setUserDisabled, verifyToken} from '../src/users.ts';
 
 const envFile = path.resolve(import.meta.dirname, '../../../.env');
@@ -115,6 +115,24 @@ describe('accounts (Postgres)', {skip: admin ? false : 'yerel Postgres yok (dock
     const mine = await recentQueries(db, {userId: u.id, limit: 2});
     assert.equal(mine.length, 2);
     assert.equal(mine[0].name, 'Ahmet Yılmaz');
+  });
+
+  it('gives daily totals with quiet days as zero, and an overview', async () => {
+    const days = await dailyTotals(db, 7);
+    assert.equal(days.length, 7);
+    assert.match(days[6].day, /^\d{4}-\d{2}-\d{2}$/);
+    assert.equal(days[6].calls, 3, 'bugün: kişiye bağlı 3 çağrı');
+    assert.equal(days[6].errors, 1);
+    assert.equal(days[0].calls, 0);
+    const u = (await findUser(db, 'ahmet@example.invalid'))!;
+    assert.equal((await dailyTotals(db, 1, u.id))[0].calls, 3);
+
+    const o = await overview(db);
+    assert.equal(o.users, 2);
+    assert.equal(o.activeUsers7d, 1);
+    assert.equal(o.callsToday, 3);
+    assert.equal(o.calls30d, 3);
+    assert.equal(o.emptySearches7d, 1);
   });
 
   it('purges old call details but keeps daily totals', async () => {

@@ -6,6 +6,7 @@ Efsane Başkan bilgi tabanını ([`ai-knowledge-base`](https://github.com/nosurr
 |---|---|
 | [`apps/sync`](apps/sync/README.md) | **kbsync**: kod reposunun main'ini yoklar, her merge'ü sırayla işleyip bilgi tabanını Claude Code ile günceller, doğrular, push eder |
 | [`apps/mcp`](apps/mcp/README.md) | MCP sunucusu: `search`, `read_doc`, `grep`, `list_docs`; compose ile Redis'in yanında çalışır |
+| `apps/panel` | Yönetim paneli (Next.js + Ant Design): kullanıcılar ve token'lar, kullanım, sorular, arama denemesi; `npm run dev -w @ai-knowledge-engine/panel` (port 3100), giriş `.env`'deki `PANEL_PASSWORD` |
 | [`packages/kb`](packages/kb/src/index.ts) | Ortak parçalar: doküman okuma, use case kartı üreticisi, chunk'lama |
 | [`packages/accounts`](packages/accounts/src/cli.ts) | Kullanıcılar, kişiye özel token'lar, kullanım kaydı (Postgres); `npm run users` |
 | [`packages/search`](packages/search/src/index.ts) | Arama: Voyage embedding (voyage-4-large), Redis indeksi (vektör + Türkçe tam metin), hibrit sorgu, indeks senkronu, arama ölçümü |

@@ -1,5 +1,17 @@
 export {createDb, databaseUrl, migrate, type Db, type DbOptions} from './db.ts';
-export {purgeUsage, recentQueries, recordUsage, usageSummary, type QueryRow, type UsageEvent, type UsageSummaryRow} from './usage.ts';
+export {
+  dailyTotals,
+  overview,
+  purgeUsage,
+  recentQueries,
+  recordUsage,
+  usageSummary,
+  type DailyTotal,
+  type Overview,
+  type QueryRow,
+  type UsageEvent,
+  type UsageSummaryRow,
+} from './usage.ts';
 export {
   addUser,
   findUser,

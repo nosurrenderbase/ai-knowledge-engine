@@ -1,6 +1,5 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import pg from 'pg';
+import {MIGRATIONS} from './migrations.ts';
 
 export type Db = pg.Pool;
 
@@ -30,10 +29,8 @@ export function createDb(opts: DbOptions): Db {
   });
 }
 
-const MIGRATIONS_DIR = path.resolve(import.meta.dirname, '../migrations');
-
 /**
- * Applies migrations/NNN_*.sql in order, each once, inside one transaction.
+ * Applies MIGRATIONS in order, each once, inside one transaction.
  * An advisory lock keeps two processes (MCP, CLI) from migrating at once.
  */
 export async function migrate(db: Db): Promise<string[]> {
@@ -43,12 +40,10 @@ export async function migrate(db: Db): Promise<string[]> {
     await client.query('select pg_advisory_xact_lock(724301)');
     await client.query('create table if not exists schema_migrations (version text primary key, applied_at timestamptz not null default now())');
     const done = new Set((await client.query<{version: string}>('select version from schema_migrations')).rows.map(r => r.version));
-    const files = fs.readdirSync(MIGRATIONS_DIR).filter(f => /^\d+_.*\.sql$/.test(f)).sort();
     const applied: string[] = [];
-    for (const file of files) {
-      const version = file.replace(/\.sql$/, '');
+    for (const {version, sql} of MIGRATIONS) {
       if (done.has(version)) continue;
-      await client.query(fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8'));
+      await client.query(sql);
       await client.query('insert into schema_migrations (version) values ($1)', [version]);
       applied.push(version);
     }

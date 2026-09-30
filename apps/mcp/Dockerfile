@@ -14,7 +14,6 @@ COPY apps/sync/package.json apps/sync/
 RUN npm ci --omit=dev --workspace @ai-knowledge-engine/mcp --no-audit --no-fund
 
 COPY packages/accounts/src packages/accounts/src
-COPY packages/accounts/migrations packages/accounts/migrations
 COPY packages/kb/src packages/kb/src
 COPY packages/search/src packages/search/src
 COPY apps/mcp/src apps/mcp/src

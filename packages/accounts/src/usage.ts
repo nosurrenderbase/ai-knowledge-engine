@@ -86,3 +86,56 @@ export async function recentQueries(
   );
   return rows.map(r => ({at: r.at, name: r.name, tool: r.tool, input: r.input, result: r.result, durationMs: r.duration_ms, error: r.error}));
 }
+
+export interface DailyTotal {
+  /** YYYY-MM-DD (Europe/Istanbul). */
+  day: string;
+  calls: number;
+  errors: number;
+}
+
+/** Calls per day for the last `days` days, every day present (zero when quiet). */
+export async function dailyTotals(db: Db, days: number, userId?: number): Promise<DailyTotal[]> {
+  const {rows} = await db.query(
+    `with days as (
+       select generate_series((now() at time zone 'Europe/Istanbul')::date - ($1::int - 1), (now() at time zone 'Europe/Istanbul')::date, interval '1 day')::date as day
+     )
+     select to_char(days.day, 'YYYY-MM-DD') as day, coalesce(sum(d.calls), 0) as calls, coalesce(sum(d.errors), 0) as errors
+       from days left join usage_daily d on d.day = days.day and ($2::bigint is null or d.user_id = $2)
+      group by days.day order by days.day`,
+    [days, userId ?? null],
+  );
+  return rows.map(r => ({day: r.day, calls: Number(r.calls), errors: Number(r.errors)}));
+}
+
+export interface Overview {
+  users: number;
+  activeUsers7d: number;
+  callsToday: number;
+  calls7d: number;
+  calls30d: number;
+  emptySearches7d: number;
+}
+
+export async function overview(db: Db): Promise<Overview> {
+  const {rows} = await db.query(
+    `with today as (select (now() at time zone 'Europe/Istanbul')::date as d)
+     select
+       (select count(*) from users where disabled_at is null) as users,
+       (select count(distinct user_id) from usage_daily, today where day > today.d - 7) as active_users_7d,
+       (select coalesce(sum(calls), 0) from usage_daily, today where day = today.d) as calls_today,
+       (select coalesce(sum(calls), 0) from usage_daily, today where day > today.d - 7) as calls_7d,
+       (select coalesce(sum(calls), 0) from usage_daily, today where day > today.d - 30) as calls_30d,
+       (select count(*) from usage_events where tool = 'search' and at > now() - interval '7 days'
+          and coalesce((result->>'count')::int, 0) = 0) as empty_searches_7d`,
+  );
+  const r = rows[0];
+  return {
+    users: Number(r.users),
+    activeUsers7d: Number(r.active_users_7d),
+    callsToday: Number(r.calls_today),
+    calls7d: Number(r.calls_7d),
+    calls30d: Number(r.calls_30d),
+    emptySearches7d: Number(r.empty_searches_7d),
+  };
+}
