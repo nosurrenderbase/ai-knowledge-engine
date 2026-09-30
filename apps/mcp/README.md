@@ -48,10 +48,12 @@ npm run users -- queries --empty         # sonuç bulunamayan aramalar (bilgi ta
 ## Claude Code'a eklemek
 
 ```bash
-claude mcp add --transport http efsane-kb https://mcp.efsanebaskan.com/mcp --header "Authorization: Bearer <kişisel token>"
+claude mcp add --scope user --transport http efsane-kb https://mcp.efsanebaskan.com/mcp --header "Authorization: Bearer <kişisel token>"
 ```
 
 claude.ai (web/Desktop) bağlantısı OAuth ister; henüz yapılmadı.
+
+`--scope user`: bilgi tabanı her klasörde kullanılabilir, token yalnız kişinin kendi ayar dosyasında (`~/.claude.json`) durur. `--scope project` kullanmayın: token repodaki `.mcp.json`'a yazılıp git'e gider.
 
 ## Testler
 

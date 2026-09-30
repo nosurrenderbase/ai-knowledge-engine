@@ -155,7 +155,7 @@ export function UsersTable({users}: {users: UserView[]}) {
           {shown?.token}
         </Typography.Paragraph>
         <Typography.Paragraph type="secondary">
-          Claude Code: <Typography.Text code copyable>{`claude mcp add --transport http efsane-kb https://mcp.efsanebaskan.com/mcp --header "Authorization: Bearer ${shown?.token ?? ''}"`}</Typography.Text>
+          Claude Code: <Typography.Text code copyable>{`claude mcp add --scope user --transport http efsane-kb https://mcp.efsanebaskan.com/mcp --header "Authorization: Bearer ${shown?.token ?? ''}"`}</Typography.Text>
         </Typography.Paragraph>
       </Modal>
     </>
