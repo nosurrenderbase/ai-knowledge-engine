@@ -1,0 +1,5 @@
+node_modules/
+work/
+deploy/kbsync.env
+chunks.jsonl
+.DS_Store

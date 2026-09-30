@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import * as fs from 'node:fs';
+import {describe, it} from 'node:test';
+import {formatDate, updateReadmeStatus} from '../src/readme.ts';
+import {read, README_STATUS, tmpDir, write} from './helpers/repos.ts';
+
+describe('formatDate', () => {
+  it('uses dd.mm.yyyy', () => assert.equal(formatDate(new Date(2026, 0, 5)), '05.01.2026'));
+});
+
+describe('updateReadmeStatus', () => {
+  it('rewrites the commit line and the counts in the README status lines', () => {
+    const dir = tmpDir();
+    write(dir, 'README.md', README_STATUS);
+    write(dir, 'flows/a/x.md', 'x');
+    write(dir, 'flows/b/y.md', 'y');
+    write(dir, 'modules/a.md', 'a');
+    for (const n of [1, 2, 3]) write(dir, `usecases/a/u${n}.usecase.md`, 'u');
+
+    updateReadmeStatus(dir, 'deadbeef', new Date(2026, 9, 1));
+    const text = read(dir, 'README.md');
+    assert.match(text, /Kod commit: `deadbeef` \(01\.10\.2026, main\)\. `\.source-commit` bunu tutar\./);
+    assert.match(text, /1 modülün hepsi belgelendi: 2 akış dokümanı \(`flows\/`\), 1 modül dokümanı \(`modules\/`\), 3 use case kartı \(`usecases\/`/);
+    fs.rmSync(dir, {recursive: true});
+  });
+
+  it('leaves unrecognised wording and missing READMEs alone', () => {
+    const dir = tmpDir();
+    assert.doesNotThrow(() => updateReadmeStatus(dir, 'x', new Date()));
+    write(dir, 'README.md', '# Başka biçim\n');
+    updateReadmeStatus(dir, 'x', new Date());
+    assert.equal(read(dir, 'README.md'), '# Başka biçim\n');
+    fs.rmSync(dir, {recursive: true});
+  });
+});

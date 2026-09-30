@@ -1,0 +1,14 @@
+{
+  "name": "@ai-knowledge-engine/sync",
+  "private": true,
+  "type": "module",
+  "description": "Bilgi tabanını kod reposuyla senkron tutan işçi (bkz. prompts/backend/UPDATE-PROMPT.md)",
+  "scripts": {
+    "start": "node src/main.ts",
+    "once": "node src/main.ts once",
+    "test": "node --test --test-concurrency=1 \"test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@ai-knowledge-engine/kb": "*"
+  }
+}

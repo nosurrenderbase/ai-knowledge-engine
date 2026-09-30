@@ -1,0 +1,24 @@
+{
+  "name": "ai-knowledge-engine",
+  "private": true,
+  "type": "module",
+  "description": "Efsane Başkan bilgi tabanını üreten, güncelleyen ve sunan araçlar",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "npm test --workspaces --if-present",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "sync": "npm start -w @ai-knowledge-engine/sync",
+    "gen:cards": "npm run gen:cards -w @ai-knowledge-engine/kb --",
+    "build:chunks": "npm run build:chunks -w @ai-knowledge-engine/kb --"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "@ai-knowledge-engine/kb",
+  "private": true,
+  "type": "module",
+  "description": "Bilgi tabanının ortak parçaları: doküman okuma, kart üretimi, chunk'lama",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "gen:cards": "node src/cli.ts gen-cards",
+    "build:chunks": "node src/cli.ts build-chunks",
+    "test": "node --test \"test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "ts-morph": "^25.0.0",
+    "yaml": "^2.8.1"
+  }
+}
