@@ -213,4 +213,20 @@ describe('Worker.run', () => {
     assert.deepEqual(sleeps, [30 * 60_000, 120_000, 120_000]);
     assert.deepEqual(t.ran, [['m1'], ['m1']]);
   });
+
+  it('runs the after-tick hook (search index) once per loop, after the tick', async () => {
+    const t = setup();
+    const order: string[] = [];
+    const worker = new Worker({
+      ...t.deps,
+      remoteHead: async () => (order.push('tick'), t.repo.head),
+      afterTick: async () => order.push('index'),
+    });
+    const controller = new AbortController();
+    let loops = 0;
+    await worker.run(controller.signal, async () => {
+      if (++loops === 2) controller.abort();
+    });
+    assert.deepEqual(order, ['tick', 'index', 'tick', 'index']);
+  });
 });

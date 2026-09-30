@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 import type {Chunk} from '@ai-knowledge-engine/kb';
 import {parseGroundTruth} from '../src/ground-truth.ts';
+import {filterQuery} from '../src/search.ts';
 import {chunkFields, createIndexArgs, rrf, textQuery, vectorBytes} from '../src/search-index.ts';
 import {embeddingsUrl} from '../src/voyage.ts';
 
@@ -91,5 +92,21 @@ describe('parseGroundTruth', () => {
       {text: 'Oyuncu nasıl giriş yapar?', docs: ['flows/giris/giris.md']},
       {text: 'Mağaza rafları', docs: ['flows/magaza/a.md', 'flows/magaza/b.md']},
     ]);
+  });
+});
+
+describe('weighted rrf', () => {
+  it('lets a heavier list win ties', () => {
+    const text = [{key: 'a', score: 1}, {key: 'b', score: 1}];
+    const vec = [{key: 'b', score: 1}, {key: 'a', score: 1}];
+    assert.equal(rrf([text, vec], 20, [1, 2])[0].key, 'b');
+    assert.equal(rrf([text, vec], 20, [2, 1])[0].key, 'a');
+  });
+});
+
+describe('filterQuery', () => {
+  it('hides removed documents by default and escapes tag values', () => {
+    assert.equal(filterQuery(), '-@status:{kaldırıldı}');
+    assert.equal(filterQuery({module: 'pvp-match', kind: 'flow', includeRemoved: true}), '@module:{pvp\\-match} @kind:{flow}');
   });
 });

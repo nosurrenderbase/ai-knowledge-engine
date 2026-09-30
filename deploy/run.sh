@@ -5,6 +5,8 @@ set -euo pipefail
 REPO="${0:A:h:h}"
 
 set -a
+# Shared settings (Redis, Voyage) first, then the worker's own.
+[[ -f "$REPO/.env" ]] && source "$REPO/.env"
 source "$REPO/deploy/kbsync.env"
 set +a
 

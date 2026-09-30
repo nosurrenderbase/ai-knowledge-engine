@@ -37,9 +37,14 @@ export interface EmbedResult {
   tokens: number;
 }
 
+/** What the indexer and search need from an embedding provider. */
+export interface Embedder {
+  embed(model: string, texts: string[], inputType: InputType): Promise<EmbedResult>;
+}
+
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-export class Voyage {
+export class Voyage implements Embedder {
   private readonly cfg: Required<VoyageConfig>;
   private readonly url: string;
 

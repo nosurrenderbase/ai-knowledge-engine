@@ -104,6 +104,11 @@ export interface Hit {
   score: number;
 }
 
+/** Escapes a value for a TAG query: `@module:{${escapeTag('pvp-match')}}`. */
+export function escapeTag(value: string): string {
+  return value.replace(/[^\p{L}\p{N}_]/gu, m => `\\${m}`);
+}
+
 /** Parses a RESP2 FT.SEARCH reply: [total, key, fields|score, ...]. */
 function parseKeys(reply: unknown[], withScores: boolean): Hit[] {
   const hits: Hit[] = [];
@@ -139,11 +144,15 @@ export async function searchVector(client: RedisClient, spec: IndexSpec, vector:
   return hits;
 }
 
-/** Reciprocal rank fusion: merges ranked lists; items high in several lists win. */
-export function rrf(lists: Hit[][], k = 60): Hit[] {
+/**
+ * Reciprocal rank fusion: merges ranked lists; items high in several lists win.
+ * `weights` scale each list's contribution (default 1 each).
+ */
+export function rrf(lists: Hit[][], k = 60, weights: number[] = []): Hit[] {
   const scores = new Map<string, number>();
-  for (const list of lists) {
-    list.forEach((hit, rank) => scores.set(hit.key, (scores.get(hit.key) ?? 0) + 1 / (k + rank + 1)));
-  }
+  lists.forEach((list, li) => {
+    const w = weights[li] ?? 1;
+    list.forEach((hit, rank) => scores.set(hit.key, (scores.get(hit.key) ?? 0) + w / (k + rank + 1)));
+  });
   return [...scores.entries()].map(([key, score]) => ({key, score})).sort((a, b) => b.score - a.score);
 }

@@ -9,6 +9,8 @@
     "test": "node --test --test-concurrency=1 \"test/**/*.test.ts\""
   },
   "dependencies": {
-    "@ai-knowledge-engine/kb": "*"
+    "@ai-knowledge-engine/kb": "*",
+    "@ai-knowledge-engine/search": "*",
+    "redis": "^5.8.0"
   }
 }

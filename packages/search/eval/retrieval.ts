@@ -18,6 +18,8 @@ import * as path from 'node:path';
 import {parseArgs} from 'node:util';
 import {buildChunks, type Chunk} from '@ai-knowledge-engine/kb';
 import {createClient} from 'redis';
+import {EmbeddingCache} from '../src/embedding-cache.ts';
+import {filterQuery} from '../src/search.ts';
 import {dropIndex, ensureIndex, rrf, searchText, searchVector, upsertChunks, type Hit, type IndexSpec} from '../src/search-index.ts';
 import {groundTruth, GROUND_TRUTH_DOC, type Question} from '../src/ground-truth.ts';
 import {Voyage} from '../src/voyage.ts';
@@ -33,7 +35,7 @@ const {values} = parseArgs({
 const AREA = path.resolve(values.kb!);
 const MODELS = values.models!.split(',');
 const DIM = 1024;
-const CACHE_DIR = path.join(REPO, 'work/eval');
+const CACHE_DIR = path.join(REPO, 'work/embeddings');
 
 function loadEnv(): void {
   const file = path.join(REPO, '.env');
@@ -43,31 +45,8 @@ function loadEnv(): void {
   }
 }
 
-/** Embeddings cache: chunk hash (or query text) → vector, per model and input type. */
-class Cache {
-  private readonly file: string;
-  private readonly data: Record<string, string>;
-  constructor(model: string, kind: string) {
-    fs.mkdirSync(CACHE_DIR, {recursive: true});
-    this.file = path.join(CACHE_DIR, `${model}.${kind}.json`);
-    this.data = fs.existsSync(this.file) ? JSON.parse(fs.readFileSync(this.file, 'utf8')) : {};
-  }
-  get(key: string): Float32Array | undefined {
-    const b64 = this.data[key];
-    if (!b64) return undefined;
-    const buf = Buffer.from(b64, 'base64');
-    return new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4);
-  }
-  set(key: string, v: Float32Array): void {
-    this.data[key] = Buffer.from(v.buffer, v.byteOffset, v.byteLength).toString('base64');
-  }
-  save(): void {
-    fs.writeFileSync(this.file, JSON.stringify(this.data));
-  }
-}
-
 async function embedAll(voyage: Voyage, model: string, kind: 'document' | 'query', items: {key: string; text: string}[]) {
-  const cache = new Cache(model, kind);
+  const cache = new EmbeddingCache(CACHE_DIR, model, kind);
   const missing = items.filter(i => !cache.get(i.key));
   let tokens = 0;
   if (missing.length) {
@@ -123,7 +102,11 @@ async function main(): Promise<void> {
   const client = createClient({url: `redis://127.0.0.1:${process.env.REDIS_PORT ?? 6380}`, password: process.env.REDIS_PASSWORD});
   await client.connect();
 
-  const K = 20;
+  const K = 30;
+  const FILTER = filterQuery();
+  const SWEEP_MODEL = 'voyage-4-large';
+  const sweepLists: Hit[][][] = [];
+  let sweepMap = new Map<string, string>();
   const results: Record<string, Score> = {};
   const queryVectors: Record<string, Float32Array[]> = {};
   const specs: IndexSpec[] = [];
@@ -144,6 +127,7 @@ async function main(): Promise<void> {
       queryVectors[model] = queries.vectors;
       console.log(`${model}: ${docs.tokens + queries.tokens} token harcandı (önbellekte olanlar hariç)`);
       pathOf = new Map(chunks.map(c => [spec.prefix + c.id, c.path]));
+      if (model === SWEEP_MODEL) sweepMap = pathOf;
 
       // Redis indexes asynchronously; wait until it has everything.
       for (;;) {
@@ -157,8 +141,9 @@ async function main(): Promise<void> {
       const vector: string[][] = [];
       const hybrid: string[][] = [];
       for (const [qi, q] of questions.entries()) {
-        const t = await searchText(client, spec, q.text, K);
-        const v = await searchVector(client, spec, queries.vectors[qi], K);
+        const t = await searchText(client, spec, q.text, K, FILTER);
+        const v = await searchVector(client, spec, queries.vectors[qi], K, FILTER);
+        if (model === SWEEP_MODEL) sweepLists.push([t, v]);
         text.push(docRanking(t, pathOf));
         vector.push(docRanking(v, pathOf));
         hybrid.push(docRanking(rrf([t, v]), pathOf));
@@ -174,11 +159,25 @@ async function main(): Promise<void> {
       const map = new Map(chunks.map(c => [spec.prefix + c.id, c.path]));
       const hybrid: string[][] = [];
       for (const [qi, q] of questions.entries()) {
-        const t = await searchText(client, spec, q.text, K);
-        const v = await searchVector(client, spec, queryVectors['voyage-4-lite'][qi], K);
+        const t = await searchText(client, spec, q.text, K, FILTER);
+        const v = await searchVector(client, spec, queryVectors['voyage-4-lite'][qi], K, FILTER);
         hybrid.push(docRanking(rrf([t, v]), map));
       }
       results['doküman large + soru lite, hibrit'] = score(questions, hybrid);
+    }
+
+    // Fusion sweep on one model: same result lists, different weights and k.
+    if (sweepLists.length) {
+      const rows: [string, Score][] = [];
+      for (const k of [10, 20, 40, 60]) {
+        for (const vw of [0.5, 1, 1.5, 2, 3]) {
+          const ranking = sweepLists.map(([t, v]) => docRanking(rrf([t, v], k, [1, vw]), sweepMap));
+          rows.push([`k=${k} vektör ağırlığı=${vw}`, score(questions, ranking)]);
+        }
+      }
+      rows.sort((a, b) => b[1].at1 - a[1].at1 || b[1].at5 - a[1].at5 || b[1].mrr - a[1].mrr);
+      console.log(`\nHarmanlama taraması (${SWEEP_MODEL}, ilk 8):\n| Ayar | İlk 1 | İlk 3 | İlk 5 | MRR@10 |\n|---|---|---|---|---|`);
+      for (const [name, s] of rows.slice(0, 8)) console.log(`| ${name} | %${s.at1} | %${s.at3} | %${s.at5} | ${s.mrr} |`);
     }
 
     console.log('\n| Yöntem | İlk 1 | İlk 3 | İlk 5 | MRR@10 |\n|---|---|---|---|---|');

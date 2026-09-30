@@ -11,6 +11,7 @@ Bilgi tabanını kod reposuyla senkron tutan işçi. Kod reposunun `main`'ini yo
 - **Hata:** watermark yalnız tam başarıda ilerler. Başarısız iş sonraki turda tekrar denenir; `MAX_ATTEMPTS` kez olmazsa ya da durdurucu bir hata çıkarsa (gizli bilgi, izin dışı dosya) sıra durur ve alarm gider. Merge atlanmaz.
 - **Abonelik limiti:** Claude limit mesajı verirse deneme sayılmaz; işçi sıfırlanma saatine kadar bekler.
 - **Commit'ler imzasızdır:** yalnız `GIT_AUTHOR_*` ile, trailer yok.
+- **Arama indeksi:** her turdan sonra KB'nin main'i indekslenen commit'ten ilerideyse `packages/search` ile yalnız değişen parçalar embed edilip Redis'e yazılır. Hata senkronu durdurmaz; üst üste 3 turda bir alarm üretir. `VOYAGE_API_KEY`, `VOYAGE_API_URL`, `REDIS_PASSWORD` yoksa ya da `DRY_RUN` açıksa kapalıdır.
 
 ## Gereksinimler
 
@@ -60,6 +61,7 @@ deploy/run.sh once                               # bir tur: sıra boşsa "idle"
 | `GIT_AUTHOR_NAME` / `GIT_AUTHOR_EMAIL` | `kbsync` / `kbsync@users.noreply.github.com` | Commit'lerin yazarı (canlıda `NoSurrender AI` / `ai@nosurrender.studio`) |
 | `ALERT_WEBHOOK_URL` | | Alarmların `{text}` olarak POST edileceği adres (ör. Slack incoming webhook) |
 | `DRY_RUN` | | `1`: yerelde commit et, push etme, tek işten sonra dur |
+| `REDIS_*`, `VOYAGE_*` | | Arama indeksi için; `deploy/run.sh` bunları repodaki `.env`'den okur (bkz. `.env.example`) |
 
 ## Çalıştırma
 

@@ -1,0 +1,18 @@
+{
+  "name": "@ai-knowledge-engine/search",
+  "private": true,
+  "type": "module",
+  "description": "Bilgi tabanı araması: embedding, Redis indeksi (vektör + Türkçe tam metin), hibrit sorgu",
+  "scripts": {
+    "eval": "node eval/retrieval.ts",
+    "index": "node src/cli.ts",
+    "test": "node --test \"test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@ai-knowledge-engine/kb": "*",
+    "redis": "^5.8.0"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

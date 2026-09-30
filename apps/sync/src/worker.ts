@@ -13,6 +13,8 @@ export interface WorkerDeps {
   remoteHead: () => Promise<string>;
   readQueue: () => Promise<{base: string; queue: Merge[]}>;
   runJob: (job: Job) => Promise<unknown>;
+  /** Runs after every tick (keeping the search index current). Must not throw. */
+  afterTick?: () => Promise<unknown>;
 }
 
 export type TickResult =
@@ -107,6 +109,7 @@ export class Worker {
   async run(signal: AbortSignal, sleep: (ms: number, signal: AbortSignal) => Promise<void>): Promise<void> {
     while (!signal.aborted) {
       const result = await this.tick();
+      await this.deps.afterTick?.();
       const wait =
         result.kind === 'limited'
           ? Math.max(result.until.getTime() - this.deps.now().getTime(), 0)
