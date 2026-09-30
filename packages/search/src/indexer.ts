@@ -3,7 +3,10 @@
  * changed are re-embedded and written, chunks that disappeared are deleted.
  * Idempotent; running it twice in a row does nothing the second time.
  */
-import {buildChunks, type Chunk} from '@ai-knowledge-engine/kb';
+import {createHash} from 'node:crypto';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import {buildChunks, listMarkdown, parseDoc, type Chunk} from '@ai-knowledge-engine/kb';
 import {EmbeddingCache} from './embedding-cache.ts';
 import {dropIndex, ensureIndex, upsertChunks, type IndexSpec, type RedisClient} from './search-index.ts';
 import type {Embedder} from './voyage.ts';
@@ -14,6 +17,18 @@ export interface IndexTarget extends IndexSpec {
 
 export const metaKey = (spec: IndexSpec) => `${spec.name}:meta`;
 export const hashesKey = (spec: IndexSpec) => `${spec.name}:hashes`;
+/** Full documents (for reading and exact search), keyed by area-relative path. */
+export const docKey = (spec: IndexSpec, docPath: string) => `${spec.name}:doc:${docPath}`;
+export const docHashesKey = (spec: IndexSpec) => `${spec.name}:dochashes`;
+
+/**
+ * Bumped when what the index stores changes, so existing installs sync again
+ * even when the knowledge base did not move. 2: full documents are stored too.
+ */
+export const INDEX_SCHEMA = '2';
+
+/** Folders of an area that hold documents (the rest is process files). */
+const DOC_DIRS = ['genel/', 'flows/', 'modules/', 'usecases/'];
 
 export interface SyncOptions {
   client: RedisClient;
@@ -32,6 +47,9 @@ export interface SyncResult {
   total: number;
   written: number;
   removed: number;
+  /** Documents whose full text was (re)stored or deleted. */
+  docsWritten: number;
+  docsRemoved: number;
   /** Tokens paid for (cache hits cost nothing). */
   tokens: number;
   rebuilt: boolean;
@@ -44,10 +62,12 @@ export async function readMeta(client: RedisClient, spec: IndexSpec): Promise<Re
 /** Deletes the index, its chunk hashes and bookkeeping. */
 async function wipe(client: RedisClient, spec: IndexSpec): Promise<void> {
   await dropIndex(client, spec);
-  for await (const keys of client.scanIterator({MATCH: `${spec.prefix}*`, COUNT: 500})) {
-    if (keys.length) await client.del(keys);
+  for (const pattern of [`${spec.prefix}*`, `${spec.name}:doc:*`]) {
+    for await (const keys of client.scanIterator({MATCH: pattern, COUNT: 500})) {
+      if (keys.length) await client.del(keys);
+    }
   }
-  await client.del([metaKey(spec), hashesKey(spec)]);
+  await client.del([metaKey(spec), hashesKey(spec), docHashesKey(spec)]);
 }
 
 export async function syncIndex(opts: SyncOptions): Promise<SyncResult> {
@@ -83,12 +103,53 @@ export async function syncIndex(opts: SyncOptions): Promise<SyncResult> {
     await client.del(removed.map(id => target.prefix + id));
     await client.hDel(hashesKey(target), removed);
   }
+  const docs = await syncDocs(client, target, areaDir);
   await client.hSet(metaKey(target), {
+    schema: INDEX_SCHEMA,
     model: target.model,
     dimension: String(target.dimension),
     commit: opts.commit,
     chunks: String(chunks.length),
     updated_at: (opts.now?.() ?? new Date()).toISOString(),
   });
-  return {total: chunks.length, written: changed.length, removed: removed.length, tokens, rebuilt};
+  return {total: chunks.length, written: changed.length, removed: removed.length, ...docs, tokens, rebuilt};
+}
+
+const asText = (v: unknown) => (v === undefined || v === null ? '' : String(v));
+
+/** Stores every document's full text (and a few fields) so readers need only Redis. */
+async function syncDocs(client: RedisClient, spec: IndexSpec, areaDir: string): Promise<{docsWritten: number; docsRemoved: number}> {
+  const files = listMarkdown(areaDir).filter(f => DOC_DIRS.some(d => f.startsWith(d)));
+  const stored = (await client.hGetAll(docHashesKey(spec))) as Record<string, string>;
+  const multi = client.multi();
+  let docsWritten = 0;
+  for (const file of files) {
+    const text = fs.readFileSync(path.join(areaDir, file), 'utf8');
+    const hash = createHash('sha256').update(text).digest('hex');
+    if (stored[file] === hash) continue;
+    let meta: Record<string, unknown> = {};
+    try {
+      meta = parseDoc(text).meta;
+    } catch {
+      // Broken frontmatter still gets stored; the text is what readers need.
+    }
+    multi.hSet(docKey(spec, file), {
+      path: file,
+      title: asText(meta.title ?? meta.name) || path.basename(file, '.md'),
+      kind: file.startsWith('usecases/') ? 'usecase' : asText(meta.type),
+      module: asText(meta.module),
+      status: asText(meta.status),
+      text,
+    });
+    multi.hSet(docHashesKey(spec), file, hash);
+    docsWritten++;
+  }
+  const current = new Set(files);
+  const gone = Object.keys(stored).filter(f => !current.has(f));
+  if (gone.length) {
+    multi.del(gone.map(f => docKey(spec, f)));
+    multi.hDel(docHashesKey(spec), gone);
+  }
+  await multi.exec();
+  return {docsWritten, docsRemoved: gone.length};
 }

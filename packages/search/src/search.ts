@@ -97,7 +97,8 @@ export async function search(
     if (out.length >= limit) break;
     const [path, title, kind, module, status, headings, text] = (await ctx.client.hmGet(hit.key, FIELDS)) as (string | null)[];
     if (!path) continue;
-    const f = {path, title: title ?? '', kind: kind ?? '', module: module ?? '', status: status ?? '', headings: headings ?? '', text: text ?? ''};
+    // 'yok' only fills the TAG field for documents without a status; do not show it.
+    const f = {path, title: title ?? '', kind: kind ?? '', module: module ?? '', status: status && status !== 'yok' ? status : '', headings: headings ?? '', text: text ?? ''};
     const n = perDocCount.get(f.path) ?? 0;
     if (n >= perDoc) continue;
     perDocCount.set(f.path, n + 1);

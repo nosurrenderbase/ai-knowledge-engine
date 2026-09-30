@@ -4,6 +4,7 @@
 #   docker compose up -d        # start (containers restart on their own after a reboot)
 #   docker compose ps
 #   docker compose logs -f redis
+#   docker compose up -d --build mcp   # after changing the MCP server or packages
 
 name: ai-knowledge-engine
 
@@ -25,3 +26,28 @@ services:
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     stop_grace_period: 30s
+
+  mcp:
+    build:
+      context: .
+      dockerfile: apps/mcp/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${MCP_PORT:-8787}:8787"
+    environment:
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "8787"
+      MCP_TOKEN: ${MCP_TOKEN:?.env içinde MCP_TOKEN tanımlı olmalı}
+      REDIS_URL: redis://redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY:?.env içinde VOYAGE_API_KEY tanımlı olmalı}
+      VOYAGE_API_URL: ${VOYAGE_API_URL}
+      VOYAGE_MODEL: ${VOYAGE_MODEL:-voyage-4-large}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3

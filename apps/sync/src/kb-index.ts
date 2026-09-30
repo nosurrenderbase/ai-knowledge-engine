@@ -5,7 +5,7 @@
  * and alerted once after a few in a row.
  */
 import * as path from 'node:path';
-import {readMeta, syncIndex, type Embedder, type IndexTarget, type RedisClient} from '@ai-knowledge-engine/search';
+import {INDEX_SCHEMA, readMeta, syncIndex, type Embedder, type IndexTarget, type RedisClient} from '@ai-knowledge-engine/search';
 import type {Config} from './config.ts';
 import {Git} from './git.ts';
 import type {Alerter, Logger} from './log.ts';
@@ -38,7 +38,7 @@ export class KbIndexer {
       const kb = new Git(cfg.kbRepo);
       const head = await kb.remoteHead(cfg.kbRemote, cfg.kbBranch);
       const meta = await readMeta(this.deps.client, this.deps.target);
-      if (meta.commit === head) {
+      if (meta.commit === head && meta.schema === INDEX_SCHEMA) {
         this.failures = 0;
         return 'up-to-date';
       }

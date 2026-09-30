@@ -1,0 +1,16 @@
+{
+  "name": "@ai-knowledge-engine/mcp",
+  "private": true,
+  "type": "module",
+  "description": "Bilgi tabanını Claude'a açan MCP sunucusu (Streamable HTTP)",
+  "scripts": {
+    "start": "node src/main.ts",
+    "test": "node --test --test-concurrency=1 \"test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@ai-knowledge-engine/search": "*",
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "redis": "^5.8.0",
+    "zod": "^3.25.0"
+  }
+}
