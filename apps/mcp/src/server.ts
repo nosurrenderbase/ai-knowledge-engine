@@ -54,7 +54,7 @@ const oneLine = (s: string, max: number) => {
 const readOnly = {readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false};
 
 export function buildServer(services: Services, caller: Caller): McpServer {
-  const server = new McpServer({name: 'efsane-baskan-kb', version: '1.0.0'}, {instructions: INSTRUCTIONS});
+  const server = new McpServer({name: 'efsane-baskan-mcp', version: '1.0.0'}, {instructions: INSTRUCTIONS});
 
   /** Runs a tool, records the call, and shapes the MCP result. */
   const tracked = async (tool: string, input: Record<string, unknown>, fn: () => Promise<ToolOutcome>) => {

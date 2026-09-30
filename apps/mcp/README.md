@@ -48,7 +48,7 @@ npm run users -- queries --empty         # sonuç bulunamayan aramalar (bilgi ta
 ## Claude Code'a eklemek
 
 ```bash
-claude mcp add --scope user --transport http efsane-kb https://mcp.efsanebaskan.com/mcp --header "Authorization: Bearer <kişisel token>"
+claude mcp add --scope user --transport http efsane-baskan-mcp https://mcp.efsanebaskan.com/mcp --header "Authorization: Bearer <kişisel token>"
 ```
 
 claude.ai (web/Desktop) bağlantısı OAuth ister; henüz yapılmadı.
