@@ -16,9 +16,10 @@
   <true/>
   <key>ThrottleInterval</key>
   <integer>30</integer>
-  <!-- On SIGTERM the worker finishes the running job first (up to CLAUDE_TIMEOUT_MS); do not kill it after the default 20 s. -->
+  <!-- On SIGTERM the worker tries to finish the running job, but launchd caps user agents at 60 s.
+       What protects a running Claude job is the busy file: the deploy job restarts the worker only when it is absent. -->
   <key>ExitTimeOut</key>
-  <integer>3900</integer>
+  <integer>60</integer>
   <key>StandardOutPath</key>
   <string>__REPO__/work/logs/kbsync.log</string>
   <key>StandardErrorPath</key>
