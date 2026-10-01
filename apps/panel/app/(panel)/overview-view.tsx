@@ -4,9 +4,11 @@ import {CheckCircleFilled, ExclamationCircleFilled, LoadingOutlined} from '@ant-
 import type {DailyTotal, Overview} from '@ai-knowledge-engine/accounts';
 import {Card, Col, Row, Tooltip, Typography} from 'antd';
 import {AreaChart} from '@/components/area-chart';
+import {LiveFeed, LiveNumber, LiveProvider, useLive} from '@/components/live';
 import {ago, fullDate} from '@/components/time';
 import {StatTile} from '@/components/ui';
 import {AREA_REPOS, ENGINE_REPO} from '@/lib/areas';
+import type {LiveState} from '@/lib/live';
 import type {ServiceVersion, Versions} from '@/lib/versions';
 
 const COLORS = {ok: '#30d158', warn: '#ff9f0a', bad: '#ff453a', idle: '#8e8e93'};
@@ -89,32 +91,53 @@ function StatusHero({v}: {v: Versions}) {
 
 function KnowledgeCard({v, indexes}: {v: Versions; indexes: Record<string, string>[]}) {
   return (
-    <Card title="Bilgi tabanı" style={{height: '100%'}}>
-      {v.areas.map(a => {
-        const meta = indexes.find(m => m.area === a.area) ?? {};
-        return (
-          <div key={a.area} className="kb-row">
-            <div style={{flex: 1, minWidth: 0}}>
-              <div style={{fontWeight: 600}}>{a.area}</div>
-              <div className="kb-meta" style={{marginTop: 2}}>
+    <Card title="Bilgi tabanı" extra={<span className="kb-meta">alan · işlenen kod · indeks</span>}>
+      <div className="kb-tiles">
+        {v.areas.map(a => {
+          const meta = indexes.find(m => m.area === a.area) ?? {};
+          return (
+            <div key={a.area} className="kb-tile">
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'baseline'}}>
+                <span style={{fontWeight: 600}}>{a.area}</span>
+                <Tooltip title={meta.updated_at ? `İndeks: ${fullDate(meta.updated_at)}` : 'henüz indekslenmedi'}>
+                  <span className="kb-meta">{meta.updated_at ? ago(meta.updated_at) : '—'}</span>
+                </Tooltip>
+              </div>
+              <div className="kb-meta" style={{marginTop: 6}}>
                 kod <Sha repo={AREA_REPOS[a.area as keyof typeof AREA_REPOS] ?? a.repo} sha={a.sourceCommit} />
                 {meta.chunks ? ` · ${Number(meta.chunks).toLocaleString('tr-TR')} parça` : ''}
               </div>
             </div>
-            <Tooltip title={meta.updated_at ? `İndeks: ${fullDate(meta.updated_at)}` : 'henüz indekslenmedi'}>
-              <span className="kb-meta">{meta.updated_at ? ago(meta.updated_at) : '—'}</span>
-            </Tooltip>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </Card>
   );
 }
 
-export function OverviewView({o, days, indexes, versions}: {o: Overview; days: DailyTotal[]; indexes: Record<string, string>[]; versions: Versions}) {
+function TodayTile() {
+  const {callsToday} = useLive();
+  return (
+    <Card>
+      <StatTile label="Bugün" value={<LiveNumber value={callsToday} />} />
+      <div className="kb-meta" style={{marginTop: 4}}>
+        çağrı · canlı
+      </div>
+    </Card>
+  );
+}
+
+export function OverviewView(props: {o: Overview; days: DailyTotal[]; indexes: Record<string, string>[]; versions: Versions; live: LiveState}) {
+  return (
+    <LiveProvider initial={props.live}>
+      <OverviewGrid {...props} />
+    </LiveProvider>
+  );
+}
+
+function OverviewGrid({o, days, indexes, versions}: {o: Overview; days: DailyTotal[]; indexes: Record<string, string>[]; versions: Versions}) {
   const n = (x: number) => x.toLocaleString('tr-TR');
   const tiles: {label: string; value: string; sub: string}[] = [
-    {label: 'Bugün', value: n(o.callsToday), sub: 'çağrı'},
     {label: 'Son 7 gün', value: n(o.calls7d), sub: `çağrı · 30 günde ${n(o.calls30d)}`},
     {label: 'Aktif kişi', value: `${o.activeUsers7d}/${o.users}`, sub: 'son 7 günde kullanan'},
     {label: 'Sonuçsuz arama', value: n(o.emptySearches7d), sub: o.emptySearches7d ? 'son 7 gün · Sorular sayfasında' : 'son 7 gün'},
@@ -123,6 +146,9 @@ export function OverviewView({o, days, indexes, versions}: {o: Overview; days: D
     <Row gutter={[18, 18]}>
       <Col xs={24}>
         <StatusHero v={versions} />
+      </Col>
+      <Col xs={12} lg={6}>
+        <TodayTile />
       </Col>
       {tiles.map(t => (
         <Col key={t.label} xs={12} lg={6}>
@@ -144,6 +170,9 @@ export function OverviewView({o, days, indexes, versions}: {o: Overview; days: D
         </Card>
       </Col>
       <Col xs={24} xl={8}>
+        <LiveFeed />
+      </Col>
+      <Col xs={24}>
         <KnowledgeCard v={versions} indexes={indexes} />
       </Col>
     </Row>

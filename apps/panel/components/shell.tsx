@@ -7,12 +7,12 @@ import {usePathname} from 'next/navigation';
 import type {ReactNode} from 'react';
 import {logout} from '@/app/login/actions';
 
-const items = [
-  {key: '/', icon: <DashboardOutlined />, label: <Link href="/">Genel bakış</Link>},
-  {key: '/users', icon: <TeamOutlined />, label: <Link href="/users">Kullanıcılar</Link>},
-  {key: '/usage', icon: <BarChartOutlined />, label: <Link href="/usage">Kullanım</Link>},
-  {key: '/queries', icon: <UnorderedListOutlined />, label: <Link href="/queries">Sorular</Link>},
-  {key: '/search', icon: <SearchOutlined />, label: <Link href="/search">Arama denemesi</Link>},
+const PAGES = [
+  {key: '/', icon: <DashboardOutlined />, label: 'Genel bakış', short: 'Özet'},
+  {key: '/users', icon: <TeamOutlined />, label: 'Kullanıcılar', short: 'Kişiler'},
+  {key: '/usage', icon: <BarChartOutlined />, label: 'Kullanım', short: 'Kullanım'},
+  {key: '/queries', icon: <UnorderedListOutlined />, label: 'Sorular', short: 'Sorular'},
+  {key: '/search', icon: <SearchOutlined />, label: 'Arama denemesi', short: 'Arama'},
 ];
 
 export function Brand({size = 'normal'}: {size?: 'normal' | 'large'}) {
@@ -30,30 +30,59 @@ export function Brand({size = 'normal'}: {size?: 'normal' | 'large'}) {
   );
 }
 
+function LogoutButton({label = true}: {label?: boolean}) {
+  return (
+    <form action={logout}>
+      <Button htmlType="submit" icon={<LogoutOutlined />} block={label} type="text" style={{color: '#6e6e73'}} aria-label="Çıkış">
+        {label ? 'Çıkış' : null}
+      </Button>
+    </form>
+  );
+}
+
+/**
+ * Desktop: a floating glass sidebar. Phones and tablets: a top bar with the
+ * brand, and a glass tab bar at the bottom (like iOS), clear of the home indicator.
+ */
 export function Shell({children}: {children: ReactNode}) {
   const path = usePathname();
-  const selected = items.find(i => i.key !== '/' && path.startsWith(i.key))?.key ?? '/';
+  const selected = PAGES.find(i => i.key !== '/' && path.startsWith(i.key))?.key ?? '/';
   return (
     <Layout style={{minHeight: '100vh'}}>
-      <Layout.Sider className="kb-sider" breakpoint="lg" collapsedWidth={0} width={244}>
+      <Layout.Sider className="kb-sider" width={244}>
         <div className="kb-glass kb-sider-panel">
           <div style={{padding: '20px 18px 16px'}}>
             <Brand />
           </div>
-          <Menu mode="inline" selectedKeys={[selected]} items={items} style={{padding: '0 10px', flex: 1}} />
-          <form action={logout} style={{padding: 14}}>
-            <Button htmlType="submit" icon={<LogoutOutlined />} block type="text" style={{color: '#6e6e73'}}>
-              Çıkış
-            </Button>
-          </form>
+          <Menu
+            mode="inline"
+            selectedKeys={[selected]}
+            items={PAGES.map(p => ({key: p.key, icon: p.icon, label: <Link href={p.key}>{p.label}</Link>}))}
+            style={{padding: '0 10px', flex: 1}}
+          />
+          <div style={{padding: 14}}>
+            <LogoutButton />
+          </div>
         </div>
       </Layout.Sider>
-      <Layout.Content style={{padding: '28px 32px'}}>
+      <Layout.Content className="kb-content">
+        <header className="kb-topbar">
+          <Brand />
+          <LogoutButton label={false} />
+        </header>
         {/* key: the rise animation replays on every page change */}
         <div key={path} className="kb-page" style={{maxWidth: 1320}}>
           {children}
         </div>
       </Layout.Content>
+      <nav className="kb-tabbar kb-glass" aria-label="Sayfalar">
+        {PAGES.map(p => (
+          <Link key={p.key} href={p.key} className={`kb-tab${selected === p.key ? ' kb-tab-on' : ''}`}>
+            <span className="kb-tab-icon">{p.icon}</span>
+            <span>{p.short}</span>
+          </Link>
+        ))}
+      </nav>
     </Layout>
   );
 }
