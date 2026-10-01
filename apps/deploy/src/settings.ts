@@ -42,11 +42,25 @@ export function ensureKeys(dir: string): string {
   return fs.readFileSync(priv, 'utf8');
 }
 
-function writeAtomic(file: string, text: string): void {
-  const mode = fs.existsSync(file) ? fs.statSync(file).mode & 0o777 : 0o600;
-  const tmp = `${file}.tmp-${process.pid}`;
-  fs.writeFileSync(tmp, text, {mode});
-  fs.renameSync(tmp, file);
+/**
+ * Rewrites the file in place (same inode). Not tmp + rename: the panel
+ * container bind-mounts these files one by one, and a bind mount stays on the
+ * old inode — after a rename the panel would see a deleted file. A backup is
+ * taken before every write, so a torn write can be undone.
+ */
+function writeInPlace(file: string, text: string): void {
+  if (!fs.existsSync(file)) {
+    fs.writeFileSync(file, text, {mode: 0o600});
+    return;
+  }
+  const fd = fs.openSync(file, 'r+');
+  try {
+    fs.ftruncateSync(fd, 0);
+    fs.writeSync(fd, text, 0, 'utf8');
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
 }
 
 async function restart(d: SettingsDeps, targets: Target[]): Promise<string | null> {
@@ -86,10 +100,10 @@ export async function applySettings(d: SettingsDeps): Promise<number> {
         const backupDir = path.join(d.keysDir, 'backups');
         fs.mkdirSync(backupDir, {recursive: true, mode: 0o700});
         fs.writeFileSync(path.join(backupDir, `${new Date().toISOString().replace(/[:.]/g, '-')}-${c.id}-${path.basename(file)}`), before, {mode: 0o600});
-        writeAtomic(file, setEnvValue(before, def.key, value));
+        writeInPlace(file, setEnvValue(before, def.key, value));
         const err = await restart(d, def.restart);
         if (err) {
-          writeAtomic(file, before);
+          writeInPlace(file, before);
           const back = await restart(d, def.restart);
           throw new Error(`${err}; eski değere dönüldü${back ? ` (ama: ${back})` : ''}`);
         }

@@ -61,7 +61,9 @@ describe('applySettings', () => {
 
   it('writes the value, keeps the rest of the file, backs it up and recreates the service', async () => {
     pending = [set('MONGO_RO_DB', 'efsane')];
+    const inode = fs.statSync(path.join(repo, '.env')).ino;
     assert.equal(await applySettings(deps()), 1);
+    assert.equal(fs.statSync(path.join(repo, '.env')).ino, inode, 'aynı dosyaya yazılır (panelin tek dosya bağlaması kopmaz)');
     assert.equal(env(), '# paylaşılan\nMONGO_RO_DB=efsane\nPOSTGRES_PASSWORD=pg\n');
     assert.equal(fs.statSync(path.join(repo, '.env')).mode & 0o777, 0o600, 'dosya izni korunur');
     assert.ok(calls.includes('docker compose up -d --no-build --force-recreate mcp'));
