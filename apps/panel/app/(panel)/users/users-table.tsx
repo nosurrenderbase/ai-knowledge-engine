@@ -4,7 +4,7 @@ import {PlusOutlined} from '@ant-design/icons';
 import {App, Button, Form, Input, Modal, Popconfirm, Space, Table, Tag, Typography} from 'antd';
 import {useRouter} from 'next/navigation';
 import {useState, useTransition} from 'react';
-import {createToken, createUser, revoke, setDisabled, type Result} from './actions';
+import {createToken, createUser, revoke, setDb, setDisabled, type Result} from './actions';
 
 export interface TokenView {
   prefix: string;
@@ -20,6 +20,8 @@ export interface UserView {
   email: string | null;
   note: string | null;
   disabled: boolean;
+  /** May use the game database tools in the MCP. */
+  dbAccess: boolean;
   activeTokens: number;
   lastUsedAt: string | null;
   calls30d: number;
@@ -93,6 +95,20 @@ export function UsersTable({users}: {users: UserView[]}) {
           {title: 'Son kullanım', dataIndex: 'lastUsedAt', render: fmt},
           {title: '30 günde çağrı', dataIndex: 'calls30d'},
           {title: 'Durum', dataIndex: 'disabled', render: d => (d ? <Tag color="red">devre dışı</Tag> : <Tag color="green">etkin</Tag>)},
+          {
+            title: 'Oyun veritabanı',
+            dataIndex: 'dbAccess',
+            render: (on: boolean, u) => (
+              <Popconfirm
+                title={on ? 'Veritabanı araçları kapatılsın mı?' : 'Veritabanı araçları açılsın mı? (salt okuma, kişisel veri hariç)'}
+                onConfirm={() => act(() => setDb(u.id, !on), on ? 'Veritabanı erişimi kapatıldı' : 'Veritabanı erişimi açıldı')}
+              >
+                <Tag color={on ? 'blue' : 'default'} style={{cursor: 'pointer'}}>
+                  {on ? 'açık' : 'kapalı'}
+                </Tag>
+              </Popconfirm>
+            ),
+          },
           {
             title: '',
             render: (_, u) => (

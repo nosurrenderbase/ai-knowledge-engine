@@ -7,6 +7,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Workspace manifests first, so dependency layers are cached across code changes.
 COPY package.json package-lock.json ./
 COPY packages/accounts/package.json packages/accounts/
+COPY packages/gamedb/package.json packages/gamedb/
 COPY packages/kb/package.json packages/kb/
 COPY packages/search/package.json packages/search/
 COPY apps/mcp/package.json apps/mcp/

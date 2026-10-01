@@ -10,6 +10,8 @@ import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import type {Principal, UsageEvent} from '@ai-knowledge-engine/accounts';
 import {search, type SearchContext, type SearchHit} from '@ai-knowledge-engine/search';
 import {z} from 'zod';
+import type {GameDb} from '@ai-knowledge-engine/gamedb';
+import {DB_INSTRUCTIONS, registerDbTools} from './db-tools.ts';
 import {splitArea, type KbStore} from './kb-store.ts';
 
 export const INSTRUCTIONS = `Efsane Başkan oyununun bilgi tabanı, üç alan:
@@ -47,6 +49,8 @@ export interface Services {
   /** Records a tool call (fire-and-forget; failures are only logged). */
   usage?: (event: UsageEvent) => Promise<void>;
   log?: (level: 'info' | 'warn' | 'error', msg: string, fields?: Record<string, unknown>) => void;
+  /** The game database (read-only); its tools are offered only to people with database access. */
+  gamedb?: GameDb;
 }
 
 /** Who is calling, from the token, and with what client (User-Agent). */
@@ -70,7 +74,8 @@ const oneLine = (s: string, max: number) => {
 const readOnly = {readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false};
 
 export function buildServer(services: Services, caller: Caller): McpServer {
-  const server = new McpServer({name: 'efsane-baskan-mcp', version: '1.0.0'}, {instructions: INSTRUCTIONS});
+  const withDb = Boolean(services.gamedb && caller.principal.dbAccess);
+  const server = new McpServer({name: 'efsane-baskan-mcp', version: '1.0.0'}, {instructions: INSTRUCTIONS + (withDb ? DB_INSTRUCTIONS : '')});
   const areaNames = [...services.areas.keys()];
   const areaParam = z.enum(areaNames as [string, ...string[]]).optional();
   const pick = (area?: string) => (area ? [[area, services.areas.get(area)!] as const] : [...services.areas.entries()]);
@@ -233,6 +238,8 @@ export function buildServer(services: Services, caller: Caller): McpServer {
         return {text: `${docs.length} doküman:\n${docs.join('\n')}`, summary: {count: docs.length}};
       }),
   );
+
+  if (withDb) registerDbTools(server, services.gamedb!, tracked);
 
   return server;
 }

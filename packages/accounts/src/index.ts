@@ -20,6 +20,7 @@ export {
   listUsers,
   newToken,
   revokeToken,
+  setDbAccess,
   setUserDisabled,
   verifyToken,
   type IssuedToken,

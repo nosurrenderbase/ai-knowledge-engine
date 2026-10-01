@@ -1,6 +1,6 @@
 'use server';
 
-import {addUser, issueToken, revokeToken, setUserDisabled} from '@ai-knowledge-engine/accounts';
+import {addUser, issueToken, revokeToken, setDbAccess, setUserDisabled} from '@ai-knowledge-engine/accounts';
 import {revalidatePath} from 'next/cache';
 import {requireAdmin} from '@/lib/auth';
 import {services} from '@/lib/services';
@@ -43,6 +43,14 @@ export async function revoke(prefix: string): Promise<Result> {
 export async function setDisabled(userId: number, disabled: boolean): Promise<Result> {
   return run(async () => {
     await setUserDisabled((await services()).db, userId, disabled);
+    return undefined;
+  });
+}
+
+/** Game database tools in the MCP (read-only, personal data excluded). */
+export async function setDb(userId: number, allowed: boolean): Promise<Result> {
+  return run(async () => {
+    await setDbAccess((await services()).db, userId, allowed);
     return undefined;
   });
 }

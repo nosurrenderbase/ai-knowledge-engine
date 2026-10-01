@@ -8,12 +8,15 @@ export interface User {
   note: string | null;
   createdAt: Date;
   disabledAt: Date | null;
+  /** May query the game database (MCP db_* tools). */
+  dbAccess: boolean;
 }
 
 export interface Principal {
   userId: number;
   tokenId: number;
   name: string;
+  dbAccess?: boolean;
 }
 
 export interface IssuedToken {
@@ -38,6 +41,7 @@ const toUser = (r: Record<string, unknown>): User => ({
   note: (r.note as string) ?? null,
   createdAt: r.created_at as Date,
   disabledAt: (r.disabled_at as Date) ?? null,
+  dbAccess: Boolean(r.db_access),
 });
 
 export async function addUser(db: Db, u: {name: string; email?: string; note?: string}): Promise<User> {
@@ -54,6 +58,10 @@ export async function findUser(db: Db, ref: string): Promise<User | null> {
 
 export async function setUserDisabled(db: Db, userId: number, disabled: boolean): Promise<void> {
   await db.query('update users set disabled_at = $2 where id = $1', [userId, disabled ? new Date() : null]);
+}
+
+export async function setDbAccess(db: Db, userId: number, allowed: boolean): Promise<void> {
+  await db.query('update users set db_access = $2 where id = $1', [userId, allowed]);
 }
 
 export async function issueToken(db: Db, userId: number, label?: string): Promise<IssuedToken> {
@@ -80,13 +88,13 @@ export async function revokeToken(db: Db, prefix: string): Promise<boolean> {
 export async function verifyToken(db: Db, token: string): Promise<Principal | null> {
   if (!/^kb_[0-9a-f]{8}_[A-Za-z0-9_-]{20,}$/.test(token)) return null;
   const {rows} = await db.query(
-    `select t.id as token_id, u.id as user_id, u.name
+    `select t.id as token_id, u.id as user_id, u.name, u.db_access
        from tokens t join users u on u.id = t.user_id
       where t.hash = $1 and t.revoked_at is null and u.disabled_at is null`,
     [hashToken(token)],
   );
   if (!rows[0]) return null;
-  const principal = {userId: Number(rows[0].user_id), tokenId: Number(rows[0].token_id), name: rows[0].name as string};
+  const principal = {userId: Number(rows[0].user_id), tokenId: Number(rows[0].token_id), name: rows[0].name as string, dbAccess: Boolean(rows[0].db_access)};
   await db.query(`update tokens set last_used_at = now() where id = $1 and (last_used_at is null or last_used_at < now() - interval '1 minute')`, [
     principal.tokenId,
   ]);

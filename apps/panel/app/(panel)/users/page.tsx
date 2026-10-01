@@ -15,6 +15,7 @@ export default async function UsersPage() {
       email: u.email,
       note: u.note,
       disabled: Boolean(u.disabledAt),
+      dbAccess: u.dbAccess,
       activeTokens: u.activeTokens,
       lastUsedAt: u.lastUsedAt?.toISOString() ?? null,
       calls30d: u.calls30d,

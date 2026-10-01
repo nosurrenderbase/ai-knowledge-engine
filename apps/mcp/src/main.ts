@@ -11,6 +11,7 @@
 import {timingSafeEqual} from 'node:crypto';
 import {createClient} from 'redis';
 import {addUser, createDb, databaseUrl, findUser, migrate, purgeUsage, recordUsage, verifyToken, type Principal} from '@ai-knowledge-engine/accounts';
+import {GameDb} from '@ai-knowledge-engine/gamedb';
 import {EmbeddingCache, loadDotEnv, loadSearchConfig, Voyage} from '@ai-knowledge-engine/search';
 import {createHttpServer} from './http.ts';
 import {KbStore} from './kb-store.ts';
@@ -86,8 +87,14 @@ const areas = new Map(
   }),
 );
 
+// Game database (read-only user): optional; without it the db tools are not offered.
+const mongoUri = process.env.MONGO_RO_URI?.trim();
+const gamedb = mongoUri ? new GameDb(mongoUri, process.env.MONGO_RO_DB?.trim() || undefined) : undefined;
+if (gamedb) void gamedb.ping().then(ok => log(ok ? 'info' : 'warn', ok ? 'oyun veritabanına bağlanıldı' : 'oyun veritabanına şimdilik bağlanılamadı'));
+
 const services = {
   areas,
+  gamedb,
   usage: (e: Parameters<typeof recordUsage>[1]) => recordUsage(db, {...e, tokenId: e.tokenId || null}),
   log,
 };
@@ -99,11 +106,13 @@ const server = createHttpServer(services, {
   ready: () => redis.isReady && dbReady,
   authenticate: async token => (isShared(token) ? legacy : verifyToken(db, token)),
 });
-server.listen(port, host, () => log('info', 'mcp dinliyor', {url: `http://${host}:${port}/mcp`, areas: areaNames, sharedToken: Boolean(sharedToken)}));
+server.listen(port, host, () =>
+  log('info', 'mcp dinliyor', {url: `http://${host}:${port}/mcp`, areas: areaNames, sharedToken: Boolean(sharedToken), gamedb: Boolean(gamedb)}),
+);
 
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sig, () => {
     server.close();
-    void Promise.allSettled([redis.quit(), db.end()]).finally(() => process.exit(0));
+    void Promise.allSettled([redis.quit(), db.end(), gamedb?.close()]).finally(() => process.exit(0));
   });
 }

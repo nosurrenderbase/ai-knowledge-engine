@@ -58,4 +58,11 @@ create table usage_daily (
 );
 `,
   },
+  {
+    version: '002_db_access',
+    sql: `
+-- Who may query the game database through the MCP server (read-only, personal data excluded). Off by default.
+alter table users add column db_access boolean not null default false;
+`,
+  },
 ];

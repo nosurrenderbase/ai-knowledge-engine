@@ -8,7 +8,7 @@ import * as path from 'node:path';
 import {after, before, describe, it} from 'node:test';
 import {createDb, databaseUrl, migrate, type Db} from '../src/db.ts';
 import {dailyTotals, overview, purgeUsage, recentQueries, recordUsage, usageSummary} from '../src/usage.ts';
-import {addUser, findUser, issueToken, listTokens, listUsers, newToken, revokeToken, setUserDisabled, verifyToken} from '../src/users.ts';
+import {addUser, findUser, issueToken, listTokens, listUsers, newToken, revokeToken, setDbAccess, setUserDisabled, verifyToken} from '../src/users.ts';
 
 const envFile = path.resolve(import.meta.dirname, '../../../.env');
 if (fs.existsSync(envFile)) {
@@ -52,14 +52,18 @@ describe('accounts (Postgres)', {skip: admin ? false : 'yerel Postgres yok (dock
   });
 
   it('migrates once and is idempotent', async () => {
-    assert.deepEqual(await migrate(db), ['001_accounts']);
+    assert.deepEqual(await migrate(db), ['001_accounts', '002_db_access']);
     assert.deepEqual(await migrate(db), []);
   });
 
   it('issues a token that verifies to its user, stores only its hash', async () => {
     const u = await addUser(db, {name: 'Ahmet Yılmaz', email: 'ahmet@example.invalid', note: 'PM'});
     const t = await issueToken(db, u.id, 'laptop');
-    assert.deepEqual(await verifyToken(db, t.token), {userId: u.id, tokenId: t.tokenId, name: 'Ahmet Yılmaz'});
+    assert.deepEqual(await verifyToken(db, t.token), {userId: u.id, tokenId: t.tokenId, name: 'Ahmet Yılmaz', dbAccess: false});
+    await setDbAccess(db, u.id, true);
+    assert.equal((await verifyToken(db, t.token))?.dbAccess, true, 'oyun veritabanı yetkisi token doğrulamasında gelir');
+    assert.equal((await findUser(db, String(u.id)))?.dbAccess, true);
+    await setDbAccess(db, u.id, false);
     const {rows} = await db.query('select hash from tokens where id = $1', [t.tokenId]);
     assert.notEqual(rows[0].hash, t.token);
     assert.ok(!JSON.stringify(rows).includes(t.token.split('_')[2]));

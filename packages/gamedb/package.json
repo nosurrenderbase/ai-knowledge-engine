@@ -1,0 +1,15 @@
+{
+  "name": "@ai-knowledge-engine/gamedb",
+  "private": true,
+  "type": "module",
+  "description": "Oyun veritabanına (MongoDB) salt okunur, kişisel veriyi dışarıda bırakan erişim",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "mongodb": "^6.20.0"
+  }
+}

@@ -7,6 +7,7 @@
  *   npm run users -- tokens <id|e-posta>
  *   npm run users -- revoke <önek>                            # e.g. 3f9a1c2b
  *   npm run users -- disable|enable <id|e-posta>
+ *   npm run users -- db-on|db-off <id|e-posta>   # oyun veritabanı araçları (MCP db_*)
  *   npm run users -- usage [--days 30]
  *   npm run users -- queries [--days 7] [--user <id|e-posta>] [--tool search] [--empty] [--limit 50]
  *   npm run users -- purge [--days 90]
@@ -16,7 +17,7 @@ import * as path from 'node:path';
 import {parseArgs} from 'node:util';
 import {createDb, databaseUrl, migrate} from './db.ts';
 import {purgeUsage, recentQueries, usageSummary} from './usage.ts';
-import {addUser, findUser, issueToken, listTokens, listUsers, revokeToken, setUserDisabled} from './users.ts';
+import {addUser, findUser, issueToken, listTokens, listUsers, revokeToken, setDbAccess, setUserDisabled} from './users.ts';
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '../../..');
 const envFile = path.join(REPO_ROOT, '.env');
@@ -92,10 +93,17 @@ try {
       console.log(`${u.name} ${command === 'disable' ? 'devre dışı' : 'etkin'}`);
       break;
     }
+    case 'db-on':
+    case 'db-off': {
+      const u = await user(args[0]);
+      await setDbAccess(db, u.id, command === 'db-on');
+      console.log(`${u.name}: oyun veritabanı erişimi ${command === 'db-on' ? 'açık' : 'kapalı'}`);
+      break;
+    }
     case 'list': {
       console.log('id\tad\te-posta\taktif token\tson kullanım\t30 günde çağrı\tdurum');
       for (const u of await listUsers(db)) {
-        console.log(`${u.id}\t${u.name}\t${u.email ?? '-'}\t${u.activeTokens}\t${fmt(u.lastUsedAt)}\t${u.calls30d}\t${u.disabledAt ? 'devre dışı' : 'etkin'}`);
+        console.log(`${u.id}\t${u.name}\t${u.email ?? '-'}\t${u.activeTokens}\t${fmt(u.lastUsedAt)}\t${u.calls30d}\t${u.disabledAt ? 'devre dışı' : 'etkin'}\t${u.dbAccess ? 'db' : '-'}`);
       }
       break;
     }
@@ -127,7 +135,7 @@ try {
       break;
     }
     default:
-      fail('Kullanım: users add|list|token|tokens|revoke|disable|enable|usage|queries|purge (ayrıntı: packages/accounts/src/cli.ts)');
+      fail('Kullanım: users add|list|token|tokens|revoke|disable|enable|db-on|db-off|usage|queries|purge (ayrıntı: packages/accounts/src/cli.ts)');
   }
 } finally {
   await db.end();

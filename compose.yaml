@@ -71,6 +71,9 @@ services:
       VOYAGE_API_KEY: ${VOYAGE_API_KEY:?.env içinde VOYAGE_API_KEY tanımlı olmalı}
       VOYAGE_API_URL: ${VOYAGE_API_URL}
       VOYAGE_MODEL: ${VOYAGE_MODEL:-voyage-4-large}
+      # Game database, read-only user (optional): db_* tools for people with database access.
+      MONGO_RO_URI: ${MONGO_RO_URI:-}
+      MONGO_RO_DB: ${MONGO_RO_DB:-}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 15s

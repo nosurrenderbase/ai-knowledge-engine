@@ -24,6 +24,26 @@ curl http://127.0.0.1:8787/health
 
 Geliştirirken doğrudan: `npm start -w @ai-knowledge-engine/mcp` (repodaki `.env`'i okur).
 
+## Oyun veritabanı araçları
+
+`.env`'de `MONGO_RO_URI` (salt okunur MongoDB kullanıcısı; okuma tercihi secondary) tanımlıysa, **veritabanı erişimi açık** kişilere ek araçlar ve talimat gelir; diğerleri bu araçları hiç görmez:
+
+| Araç | Ne yapar |
+|---|---|
+| `find_team` | Takımı adı, başkan adı ya da id ile bulur |
+| `team_overview` | Takım ayarları, başkan, lig satırı, maç günü kadrosu, son 8 maç |
+| `match_detail` | Lig ya da PvP maçı: skor, durum, istatistik, hata, motorun girdi fotoğrafı |
+| `league_table` | Tamamlanan maçlardan puan tablosu, fikstür durumları |
+| `db_collections`, `db_fields` | Okunabilir koleksiyonlar; bir koleksiyonun alanları |
+| `db_find`, `db_count`, `db_aggregate` | İzinli koleksiyonlarda sınırlı sorgu (100/200 belge, 10 sn) |
+
+Kural: yalnız [`packages/gamedb/src/policy.ts`](../../packages/gamedb/src/policy.ts)'teki koleksiyonlar; `users` alan izin listesiyle; e-posta, telefon, giriş sağlayıcıları, token'lar, ödeme/kimlik alanları sorguda reddedilir, sonuçta her derinlikte silinir; yazma ve kod çalıştıran operatörler yasak; KYC veritabanına bağlanılmaz. Erişim kişi başına:
+
+```bash
+npm run users -- db-on <id|e-posta>    # ya da panelde "Oyun veritabanı" sütunu
+npm run users -- db-off <id|e-posta>
+```
+
 ## Erişim ve kullanım kaydı
 
 Herkes kendi token'ıyla bağlanır; token'lar `packages/accounts` ile yönetilir, veritabanında yalnız özetleri durur:

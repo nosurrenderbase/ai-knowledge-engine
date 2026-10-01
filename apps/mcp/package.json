@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@ai-knowledge-engine/accounts": "*",
+    "@ai-knowledge-engine/gamedb": "*",
     "@ai-knowledge-engine/search": "*",
     "@modelcontextprotocol/sdk": "^1.20.0",
     "redis": "^5.8.0",
