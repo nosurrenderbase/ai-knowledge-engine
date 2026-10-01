@@ -1,35 +1,37 @@
 'use client';
 
-import {App, ConfigProvider, theme} from 'antd';
+import {App, ConfigProvider} from 'antd';
 import trTR from 'antd/locale/tr_TR';
 import type {ReactNode} from 'react';
+
+const SYSTEM_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Inter", "Segoe UI", sans-serif';
 
 export function Providers({children}: {children: ReactNode}) {
   return (
     <ConfigProvider
       locale={trTR}
       theme={{
-        algorithm: theme.darkAlgorithm,
         token: {
-          colorPrimary: '#8b5cf6',
-          colorInfo: '#22d3ee',
-          colorSuccess: '#34d399',
-          colorWarning: '#fbbf24',
-          colorError: '#f87171',
-          colorLink: '#67e8f9',
-          colorBgBase: '#070b14',
-          colorBgContainer: '#0d1322',
-          colorBgElevated: '#111a2e',
-          colorBorder: '#1f2a40',
-          colorBorderSecondary: '#182134',
+          colorPrimary: '#0a84ff',
+          colorInfo: '#0a84ff',
+          colorSuccess: '#30d158',
+          colorWarning: '#ff9f0a',
+          colorError: '#ff453a',
+          colorText: '#1d1d1f',
+          colorTextSecondary: '#6e6e73',
+          colorBgLayout: 'transparent',
+          colorBorder: 'rgba(15,23,42,0.12)',
+          colorBorderSecondary: 'rgba(15,23,42,0.07)',
           borderRadius: 12,
-          fontFamily: 'var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          controlHeight: 36,
+          fontFamily: SYSTEM_FONT,
+          fontSize: 14,
         },
         components: {
-          Layout: {siderBg: 'transparent', bodyBg: 'transparent', triggerBg: '#0d1322'},
-          Menu: {darkItemBg: 'transparent', darkItemSelectedBg: 'transparent', darkItemColor: 'rgba(226,232,240,0.7)', itemBorderRadius: 10},
-          Table: {headerBg: 'transparent', rowHoverBg: 'rgba(139,92,246,0.06)'},
-          Button: {primaryShadow: '0 0 18px rgba(139,92,246,0.35)'},
+          Layout: {siderBg: 'transparent', bodyBg: 'transparent'},
+          Menu: {itemBg: 'transparent', itemSelectedBg: 'transparent', itemHeight: 40, itemMarginInline: 0},
+          Card: {headerBg: 'transparent'},
+          Button: {primaryShadow: '0 6px 16px -6px rgba(10,132,255,0.55)', defaultShadow: 'none'},
         },
       }}
     >

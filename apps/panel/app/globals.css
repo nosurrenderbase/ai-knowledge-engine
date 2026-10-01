@@ -1,39 +1,55 @@
-/* Panel look: deep night background, one cyan→violet accent, glass cards. Kept quiet on purpose. */
+/*
+ * Panel look, after Apple's Liquid Glass: a calm light backdrop with slow,
+ * low-saturation colour fields, and frosted glass layers on top (blur,
+ * a thin specular highlight, soft depth). One accent, system type, gentle
+ * spring-like motion that disappears with "reduce motion".
+ */
 :root {
-  --kb-bg: #070b14;
-  --kb-accent-a: #22d3ee;
-  --kb-accent-b: #8b5cf6;
-  --kb-gradient: linear-gradient(135deg, var(--kb-accent-a), var(--kb-accent-b));
-  --kb-line: rgba(148, 163, 184, 0.12);
-  --kb-glass: rgba(15, 22, 38, 0.62);
+  --kb-text: #1d1d1f;
+  --kb-text-2: #6e6e73;
+  --kb-accent: #0a84ff;
+  --kb-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --kb-glass-bg: rgba(255, 255, 255, 0.56);
+  --kb-glass-border: rgba(255, 255, 255, 0.7);
+  --kb-glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.85) inset, 0 0 0 0.5px rgba(15, 23, 42, 0.06), 0 10px 30px -12px rgba(15, 23, 42, 0.18);
+  --kb-radius: 22px;
 }
 
 html,
 body {
   margin: 0;
   min-height: 100%;
-  background: var(--kb-bg);
-  color-scheme: dark;
+  color-scheme: light;
+  background: #eef0f4;
+  color: var(--kb-text);
+  -webkit-font-smoothing: antialiased;
 }
 
-body {
-  background:
-    radial-gradient(1100px 600px at 85% -10%, rgba(139, 92, 246, 0.16), transparent 60%),
-    radial-gradient(900px 500px at -10% 10%, rgba(34, 211, 238, 0.1), transparent 55%),
-    linear-gradient(var(--kb-line) 1px, transparent 1px) 0 0 / 48px 48px,
-    linear-gradient(90deg, var(--kb-line) 1px, transparent 1px) 0 0 / 48px 48px,
-    var(--kb-bg);
-  background-attachment: fixed;
-}
-
-/* Grid lines fade out towards the bottom so content stays calm. */
-body::before {
-  content: '';
+/* Backdrop: three soft colour fields drifting very slowly behind the glass. */
+.kb-backdrop {
   position: fixed;
   inset: 0;
-  pointer-events: none;
-  background: linear-gradient(to bottom, transparent 0%, var(--kb-bg) 75%);
   z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: linear-gradient(180deg, #f5f6f8 0%, #eceef3 100%);
+}
+.kb-backdrop i {
+  position: absolute;
+  width: 46vmax;
+  height: 46vmax;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.55;
+  animation: kb-drift 38s var(--kb-ease) infinite alternate;
+}
+.kb-backdrop i:nth-child(1) { background: #c7dcff; top: -16vmax; left: -10vmax; }
+.kb-backdrop i:nth-child(2) { background: #e3d7ff; bottom: -18vmax; right: -12vmax; animation-duration: 46s; animation-delay: -12s; }
+.kb-backdrop i:nth-child(3) { background: #d5f1ec; top: 30%; left: 45%; width: 30vmax; height: 30vmax; opacity: 0.45; animation-duration: 54s; animation-delay: -24s; }
+
+@keyframes kb-drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(6vmax, 4vmax, 0) scale(1.08); }
 }
 
 .ant-layout,
@@ -43,100 +59,169 @@ body::before {
   z-index: 1;
 }
 
-.ant-card {
-  background: var(--kb-glass) !important;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid var(--kb-line) !important;
-  transition: border-color 0.2s ease;
+/* Glass surfaces */
+.ant-card,
+.kb-glass {
+  background: var(--kb-glass-bg) !important;
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--kb-glass-border) !important;
+  border-radius: var(--kb-radius) !important;
+  box-shadow: var(--kb-glass-shadow);
+  transition: transform 0.35s var(--kb-ease), box-shadow 0.35s var(--kb-ease);
 }
 .ant-card:hover {
-  border-color: rgba(139, 92, 246, 0.35) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 0 0 0.5px rgba(15, 23, 42, 0.06), 0 18px 40px -14px rgba(15, 23, 42, 0.22);
 }
 .ant-card-head {
-  border-bottom-color: var(--kb-line) !important;
+  border-bottom: 0.5px solid rgba(15, 23, 42, 0.07) !important;
+  min-height: 52px;
 }
 .ant-card-head-title {
   font-weight: 600;
-  letter-spacing: 0.01em;
+  font-size: 15px;
 }
 
+/* Content appears with a short rise, cards one after another. */
+.kb-page > * {
+  animation: kb-rise 0.55s var(--kb-ease) both;
+}
+.kb-page .ant-col {
+  animation: kb-rise 0.6s var(--kb-ease) both;
+}
+.kb-page .ant-col:nth-child(1) { animation-delay: 0.02s; }
+.kb-page .ant-col:nth-child(2) { animation-delay: 0.06s; }
+.kb-page .ant-col:nth-child(3) { animation-delay: 0.1s; }
+.kb-page .ant-col:nth-child(4) { animation-delay: 0.14s; }
+.kb-page .ant-col:nth-child(5) { animation-delay: 0.18s; }
+.kb-page .ant-col:nth-child(6) { animation-delay: 0.22s; }
+.kb-page .ant-col:nth-child(7) { animation-delay: 0.26s; }
+.kb-page .ant-col:nth-child(n + 8) { animation-delay: 0.3s; }
+
+@keyframes kb-rise {
+  from { opacity: 0; transform: translateY(10px) scale(0.99); filter: blur(4px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+/* Controls: pill buttons that give a little when pressed. */
+.ant-btn {
+  border-radius: 999px !important;
+  transition: transform 0.2s var(--kb-ease), background 0.2s ease, box-shadow 0.2s ease !important;
+}
+.ant-btn:active {
+  transform: scale(0.97);
+}
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-select-selector,
+.ant-input-number {
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.7) !important;
+}
+.ant-tag {
+  border-radius: 999px !important;
+  padding-inline: 10px;
+  border: none !important;
+}
+
+/* Tables sit directly on the glass. */
 .ant-table,
-.ant-table-thead > tr > th {
+.ant-table-container,
+.ant-table-thead > tr > th,
+.ant-table-tbody > tr > td {
   background: transparent !important;
 }
 .ant-table-thead > tr > th {
-  color: rgba(226, 232, 240, 0.55) !important;
+  color: var(--kb-text-2) !important;
+  font-weight: 500 !important;
   font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  border-bottom: 0.5px solid rgba(15, 23, 42, 0.08) !important;
+}
+.ant-table-thead > tr > th::before {
+  display: none;
+}
+.ant-table-tbody > tr > td {
+  border-bottom: 0.5px solid rgba(15, 23, 42, 0.06) !important;
+}
+.ant-table-tbody > tr:hover > td {
+  background: rgba(255, 255, 255, 0.45) !important;
 }
 
 code,
 .ant-typography code,
 .kb-mono {
-  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace !important;
+  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace !important;
+  font-variant-numeric: tabular-nums;
 }
 .ant-typography code {
-  background: rgba(139, 92, 246, 0.12) !important;
-  border: 1px solid rgba(139, 92, 246, 0.25) !important;
+  background: rgba(10, 132, 255, 0.08) !important;
+  border: none !important;
   border-radius: 6px;
-}
-
-.kb-gradient-text {
-  background: var(--kb-gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  padding: 1px 6px;
 }
 
 .kb-stat-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgba(226, 232, 240, 0.55);
+  font-size: 12px;
+  color: var(--kb-text-2);
 }
 .kb-stat-value {
-  font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 30px;
   font-weight: 600;
-  line-height: 1.2;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
   margin-top: 6px;
+  color: var(--kb-text);
+  font-variant-numeric: tabular-nums;
 }
 
-/* Sider */
+/* Floating glass sidebar */
 .kb-sider {
-  background: rgba(7, 11, 20, 0.72) !important;
-  backdrop-filter: blur(14px);
-  border-right: 1px solid var(--kb-line);
+  background: transparent !important;
+  padding: 12px 0 12px 12px;
+}
+.kb-sider-panel {
+  height: calc(100vh - 24px);
+  position: sticky;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
 }
 .kb-sider .ant-menu {
   background: transparent !important;
   border-inline-end: none !important;
 }
-.kb-sider .ant-menu-item-selected {
-  background: linear-gradient(90deg, rgba(34, 211, 238, 0.14), rgba(139, 92, 246, 0.14)) !important;
-  box-shadow: inset 2px 0 0 var(--kb-accent-a);
+.kb-sider .ant-menu-item {
+  border-radius: 12px !important;
+  color: var(--kb-text-2) !important;
+  transition: background 0.3s var(--kb-ease), color 0.3s ease, box-shadow 0.3s var(--kb-ease) !important;
 }
-.kb-logo {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: var(--kb-gradient);
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  font-size: 14px;
-  color: #070b14;
-  box-shadow: 0 0 24px rgba(139, 92, 246, 0.35);
+.kb-sider .ant-menu-item:hover {
+  background: rgba(255, 255, 255, 0.5) !important;
+  color: var(--kb-text) !important;
+}
+.kb-sider .ant-menu-item-selected {
+  background: rgba(255, 255, 255, 0.85) !important;
+  color: var(--kb-text) !important;
+  font-weight: 500;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 1) inset, 0 4px 14px -6px rgba(15, 23, 42, 0.2);
+}
+.kb-sider .ant-menu-item-selected .anticon {
+  color: var(--kb-accent);
 }
 
-.kb-title-rule {
-  height: 2px;
-  width: 56px;
-  border-radius: 2px;
-  background: var(--kb-gradient);
-  margin: 8px 0 20px;
+.kb-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: #1d1d1f;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.25) inset, 0 6px 14px -6px rgba(15, 23, 42, 0.45);
 }
 
 .kb-dot {
@@ -144,7 +229,33 @@ code,
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #34d399;
-  box-shadow: 0 0 10px #34d399;
-  margin-right: 8px;
+  background: #30d158;
+  margin-right: 7px;
+  animation: kb-pulse 2.4s ease-in-out infinite;
+}
+@keyframes kb-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.45); }
+  50% { box-shadow: 0 0 0 5px rgba(48, 209, 88, 0); }
+}
+
+.kb-bar {
+  transition: height 0.6s var(--kb-ease), opacity 0.2s ease;
+  transform-origin: bottom;
+  animation: kb-grow 0.7s var(--kb-ease) both;
+}
+.kb-bar:hover {
+  opacity: 0.75;
+}
+@keyframes kb-grow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
