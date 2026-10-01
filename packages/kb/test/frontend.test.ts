@@ -45,7 +45,12 @@ const APP: Record<string, string> = {
   'app/(tabs)/index.tsx': "import Home from '@/components/pages/home/Home';\nexport default function Index() { return <Home />; }\n",
   'app/pvp.tsx': "import {PvpPanel} from '@/components/pvp/PvpPanel';\nexport default function Pvp() { return <PvpPanel />; }\n",
   'src/components/Root.tsx': 'export default function Root() { return null; }\n',
+  'src/components/pages/home/index.ts': "export {TopBar} from './TopBar';\nexport {OldPanel as LegacyPanel} from './OldPanel';\nexport * from './widgets';\n",
+  'src/components/pages/home/OldPanel.tsx': 'export const OldPanel = () => null;\n',
+  'src/components/pages/home/widgets.tsx': 'export function Clock() { return null; }\nexport default function Unused() { return null; }\n',
+  'src/components/pages/home/TopBar.tsx': 'export const TopBar = () => null;\n',
   'src/components/pages/home/Home.tsx': [
+    "import {TopBar, Clock} from './';",
     "import {useQuery} from '@apollo/client';",
     "import {MeQuery} from '@/graphql/me';",
     "import {router} from 'expo-router';",
@@ -126,6 +131,9 @@ describe('frontend model and documents', () => {
     const raw = m.ops.find(o => o.name === 'PvpRemaining')!;
     assert.equal(raw.style, 'raw');
     assert.ok(!m.reachable.has('src/components/old/Unused.tsx'));
+    assert.ok(m.reachable.has('src/components/pages/home/TopBar.tsx'), "klasörün kendisinden içe aktarma ('./') çözülür");
+    assert.ok(m.reachable.has('src/components/pages/home/widgets.tsx'), 'export * üzerinden içe aktarılan ad izlenir');
+    assert.ok(!m.reachable.has('src/components/pages/home/OldPanel.tsx'), 'barrel yeniden dışa aktarsa da kimse almıyorsa erişilmez');
     assert.deepEqual(m.files.get('src/components/pages/home/Home.tsx')?.navTargets, ['/pvp']);
     assert.deepEqual(m.files.get('src/components/pages/home/Home.tsx')?.events, ['home_opened']);
   });

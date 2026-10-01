@@ -32,8 +32,10 @@ export interface FileInfo {
   path: string;
   /** Resolved in-repo imports (and re-exports): target file and the names taken from it. */
   imports: {target: string; names: string[]; reexport?: boolean}[];
-  /** Re-exports: name (or '*') → target file. */
-  reexports: {name: string; target: string}[];
+  /** Re-exports: exported name (or '*'), the name in the target, and the target file. */
+  reexports: {name: string; source: string; target: string}[];
+  /** Names the file itself declares as exports ('default' included). */
+  exportNames: Set<string>;
   navTargets: string[];
   events: string[];
 }
@@ -137,6 +139,8 @@ export function buildFrontendModel(sourceDir: string): FrontendModel {
     if (spec.startsWith('@/')) base = `src/${spec.slice(2)}`;
     else if (spec.startsWith('.')) base = path.posix.normalize(path.posix.join(path.posix.dirname(from), spec));
     else return null;
+    // "./" and "." name the folder itself (its index file).
+    base = base.replace(/\/+$/, '');
     for (const c of [base, `${base}.ts`, `${base}.tsx`, `${base}/index.ts`, `${base}/index.tsx`]) if (known.has(c)) return c;
     return null;
   };
@@ -148,7 +152,7 @@ export function buildFrontendModel(sourceDir: string): FrontendModel {
   for (const rel of relFiles) {
     const sf = project.addSourceFileAtPath(path.join(sourceDir, rel));
     sources.set(rel, sf);
-    const info: FileInfo = {path: rel, imports: [], reexports: [], navTargets: [], events: []};
+    const info: FileInfo = {path: rel, imports: [], reexports: [], exportNames: new Set(), navTargets: [], events: []};
 
     for (const imp of sf.getImportDeclarations()) {
       const target = resolve(rel, imp.getModuleSpecifierValue());
@@ -163,9 +167,21 @@ export function buildFrontendModel(sourceDir: string): FrontendModel {
       if (!spec) continue;
       const target = resolve(rel, spec);
       if (!target) continue;
-      const named = exp.getNamedExports().map(n => n.getName());
-      info.imports.push({target, names: named.length ? named : ['*'], reexport: true});
-      for (const n of named.length ? named : ['*']) info.reexports.push({name: n, target});
+      const named = exp.getNamedExports();
+      info.imports.push({target, names: named.length ? named.map(n => n.getName()) : ['*'], reexport: true});
+      if (named.length === 0) info.reexports.push({name: '*', source: '*', target});
+      for (const n of named) info.reexports.push({name: n.getAliasNode()?.getText() ?? n.getName(), source: n.getName(), target});
+    }
+    // What the file itself exports (syntax only; enough to follow barrels by name).
+    for (const stmt of sf.getStatements()) {
+      if (Node.isExportAssignment(stmt)) info.exportNames.add('default');
+      if (Node.isExportDeclaration(stmt) && !stmt.getModuleSpecifierValue()) {
+        for (const n of stmt.getNamedExports()) info.exportNames.add(n.getAliasNode()?.getText() ?? n.getName());
+      }
+      if (!Node.isModifierable(stmt) || !stmt.hasModifier(SyntaxKind.ExportKeyword)) continue;
+      if (stmt.hasModifier(SyntaxKind.DefaultKeyword)) info.exportNames.add('default');
+      if (Node.isVariableStatement(stmt)) for (const d of stmt.getDeclarations()) info.exportNames.add(d.getName());
+      else if (Node.hasName(stmt)) info.exportNames.add(stmt.getName());
     }
     // Lazy imports: import('@/x') and require('@/x').
     sf.forEachDescendant(node => {
@@ -216,15 +232,39 @@ export function buildFrontendModel(sourceDir: string): FrontendModel {
   }
 
   const routes = relFiles.filter(f => f.startsWith('app/'));
-  const reachable = new Set<string>(routes);
+  // Files that actually provide `name` when it is imported from `file`, through barrels.
+  const providers = (file: string, name: string, seen = new Set<string>()): string[] => {
+    const key = `${file}#${name}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
+    const info = files.get(file);
+    if (!info) return [];
+    if (name === '*') return [file, ...info.reexports.flatMap(r => providers(r.target, r.source === '*' ? '*' : r.source, seen))];
+    if (info.exportNames.has(name)) return [file];
+    const out: string[] = [];
+    for (const r of info.reexports) {
+      if (r.name === name) out.push(...providers(r.target, r.source, seen));
+      else if (r.name === '*') out.push(...providers(r.target, name, seen));
+    }
+    return out;
+  };
+
+  // Reachable files: follow imports from the routes; a barrel passes on only the names taken from it.
+  const reachable = new Set<string>();
   const queue = [...routes];
+  const visit = (f: string) => {
+    if (!reachable.has(f)) {
+      reachable.add(f);
+      queue.push(f);
+    }
+  };
+  for (const r of routes) reachable.add(r);
   while (queue.length) {
     const f = queue.pop()!;
     for (const imp of files.get(f)?.imports ?? []) {
-      if (!reachable.has(imp.target)) {
-        reachable.add(imp.target);
-        queue.push(imp.target);
-      }
+      if (imp.reexport) continue;
+      visit(imp.target);
+      for (const name of imp.names) for (const p of providers(imp.target, name)) visit(p);
     }
   }
 
@@ -238,7 +278,7 @@ export function buildFrontendModel(sourceDir: string): FrontendModel {
     if (opsByConst.has(key)) return opsByConst.get(key)!;
     for (const r of files.get(file)?.reexports ?? []) {
       if (r.name === name || r.name === '*') {
-        const found = origin(r.target, name, seen);
+        const found = origin(r.target, r.name === '*' ? name : r.source, seen);
         if (found) return found;
       }
     }
