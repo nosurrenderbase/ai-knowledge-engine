@@ -331,7 +331,7 @@ export function buildEngineModel(sourceDir: string): EngineModel {
     if (m && !l.includes('{') && !l.includes(':')) hooks.push({name: m[1], comment: (m[2] ?? '').trim(), kind: m[1].startsWith('HookTend') ? 'tend' : 'exec'});
   }
   const styles: PlayStyle[] = [];
-  for (const m of stylesSrc.matchAll(/^\s*"([^"]+)":\s*\{(.*)\},\s*(?:\/\/\s?(.*))?$/gm)) {
+  for (const m of stylesSrc.matchAll(/^[ \t]*"([^"]+)":[ \t]*\{(.*)\},[ \t]*(?:\/\/[ \t]?(.*))?$/gm)) {
     const effects = [...m[2].matchAll(/\{hook: (Hook\w+)([^}]*)\}/g)].map(e => ({hook: e[1], tend: /tend: true/.test(e[2]), inv: /inv: true/.test(e[2])}));
     styles.push({name: m[1], effects, note: (m[3] ?? '').trim()});
   }

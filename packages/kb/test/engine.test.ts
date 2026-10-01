@@ -66,6 +66,8 @@ const (
 var styleRegistry = map[string][]styleEffect{
 	"rapid":      {{hook: HookSpeed}},
 	"jockey":     {{hook: HookTendPress, tend: true, inv: true}}, // faz-2
+	// Hava
+	"block":      {{hook: HookSpeed}},
 }
 `,
   'internal/ai/player_brain.go': `package ai
@@ -181,6 +183,7 @@ describe('match engine model and documents', () => {
     assert.deepEqual(m.styles.map(s => [s.name, s.effects, s.note]), [
       ['rapid', [{hook: 'HookSpeed', tend: false, inv: false}], ''],
       ['jockey', [{hook: 'HookTendPress', tend: true, inv: true}], 'faz-2'],
+      ['block', [{hook: 'HookSpeed', tend: false, inv: false}], ''],
     ]);
     assert.deepEqual(m.hooks.map(h => [h.name, h.kind]), [['HookSpeed', 'exec'], ['HookTendPress', 'tend']]);
   });
