@@ -23,6 +23,10 @@ export function updateReadmeStatus(areaDir: string, commit: string, date: Date):
     .replace(
       /\d+ modülün hepsi belgelendi: \d+ akış dokümanı \(`flows\/`\), \d+ modül dokümanı \(`modules\/`\), \d+ use case kartı/,
       `${modules} modülün hepsi belgelendi: ${count('flows')} akış dokümanı (\`flows/\`), ${modules} modül dokümanı (\`modules/\`), ${count('usecases')} use case kartı`,
+    )
+    .replace(
+      /\d+ akış dokümanı \(`flows\/`\), \d+ API kartı \(`api\/`\), \d+ ekran kartı \(`ekranlar\/`\)/,
+      `${count('flows')} akış dokümanı (\`flows/\`), ${count('api')} API kartı (\`api/\`), ${count('ekranlar')} ekran kartı (\`ekranlar/\`)`,
     );
   fs.writeFileSync(file, text);
 }
