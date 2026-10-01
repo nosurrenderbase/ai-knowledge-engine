@@ -16,6 +16,9 @@
   <true/>
   <key>ThrottleInterval</key>
   <integer>30</integer>
+  <!-- On SIGTERM the worker finishes the running job first (up to CLAUDE_TIMEOUT_MS); do not kill it after the default 20 s. -->
+  <key>ExitTimeOut</key>
+  <integer>3900</integer>
   <key>StandardOutPath</key>
   <string>__REPO__/work/logs/kbsync.log</string>
   <key>StandardErrorPath</key>

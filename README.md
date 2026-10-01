@@ -6,6 +6,7 @@ Efsane Başkan bilgi tabanını ([`ai-knowledge-base`](https://github.com/nosurr
 |---|---|
 | [`apps/sync`](apps/sync/README.md) | **kbsync**: kod reposunun main'ini yoklar, her merge'ü sırayla işleyip bilgi tabanını Claude Code ile günceller, doğrular, push eder |
 | [`apps/mcp`](apps/mcp/README.md) | MCP sunucusu: `search`, `read_doc`, `grep`, `list_docs`; compose ile Redis'in yanında çalışır |
+| [`apps/deploy`](apps/deploy/src/deploy.ts) | Bu makinenin kendini güncellemesi: main'i 2 dakikada bir yoklar, yeni commit'i aday klonda test eder, değişen servisi yeniden başlatır, sağlık kontrolü yapar, olmazsa geri alır |
 | `apps/panel` | Yönetim paneli (Next.js + Ant Design): kullanıcılar ve token'lar, kullanım, sorular, arama denemesi; `npm run dev -w @ai-knowledge-engine/panel` (port 3100), giriş `.env`'deki `PANEL_PASSWORD` |
 | [`packages/kb`](packages/kb/src/index.ts) | Ortak parçalar: doküman okuma, backend use case kartları, frontend modeli ve kartları (API ve ekran kartları, API haritası, kullanılmayan kod), maç motoru modeli ve kartları (stat → çarpan → kullanıldığı yer, oyun stilleri), chunk'lama |
 | [`packages/gamedb`](packages/gamedb/src/policy.ts) | Oyun veritabanına (MongoDB) salt okunur erişim: izinli koleksiyonlar, kişisel veriyi reddeden sorgu denetimi ve maskeleme, hazır görünümler (takım, maç, lig tablosu) |
@@ -46,5 +47,15 @@ Bilgi tabanının üç alanı var: `backend/` (NestJS sunucusu, `nestjs-boilerpl
 Arama indeksini işçi günceller: her turdan sonra KB'nin main'i indekslenen commit'ten ilerideyse yalnız değişen parçaları embed edip Redis'e yazar. Embedding'ler `work/embeddings`'te de tutulur; Redis kaybolursa indeks ücretsiz yeniden kurulur.
 
 Redis verisi `work/redis`'te (AOF + RDB) durur; makine ya da Docker yeniden başlayınca konteyner kendiliğinden kalkar. Başka makineye taşımak için repo, `work/` ve `.env` kopyalanır.
+
+## Otomatik deploy
+
+Bu repo'nun main'ine push edilen her commit bu makinede kendiliğinden canlıya alınır (`dev.nosurrender.kbdeploy`, launchd, 2 dakikada bir):
+
+1. Yeni commit önce `work/deploy/candidate` aday klonunda kurulur, `npm run typecheck` ve `npm test`'ten geçer. Geçmezse canlıya hiç dokunulmaz; o commit bir daha denenmez, sonraki commit denenir.
+2. Canlı klon ileri sarılır (`--ff-only`); yalnız değişenin gerektirdiği yapılır: `apps/sync` → işçi yeniden başlar (süren Claude işi varsa iş bitince), `apps/mcp` → MCP, `apps/panel` → panel, `packages/*` → onu kullananlar, kilit dosyası → `npm ci`, `compose.yaml` → bütün servisler; dokümanlar ve `prompts/` hiçbir şeyi yeniden başlatmaz.
+3. Sağlık kontrolü (container `healthy`, işçi "başladı" logu); olmazsa önceki commit'e dönülür.
+
+Her adım `work/logs/deploy.log`'a, deploy/atlama/hata/geri alma `ALERT_WEBHOOK_URL`'e gider; canlıdaki commit `work/deploy/state.json`'da. **Sunucudaki klonda elle düzenleme yapılmaz**: commit edilmemiş değişiklik varsa deploy durur ve alarm verir. Elle bir tur: `deploy/run-deploy.sh`.
 
 Node.js 22.18+ gerekir; TypeScript derlenmeden, doğrudan çalıştırılır.

@@ -1,0 +1,10 @@
+{
+  "name": "@ai-knowledge-engine/deploy",
+  "private": true,
+  "type": "module",
+  "description": "Bu makinenin kendini güncellemesi: main'i yoklar, aday klonda test eder, değişen servisi yeniden başlatır, sağlık kontrolü, gerekirse geri alır",
+  "scripts": {
+    "start": "node src/main.ts",
+    "test": "node --test \"test/**/*.test.ts\""
+  }
+}

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>dev.nosurrender.kbdeploy</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__REPO__/deploy/run-deploy.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__REPO__</string>
+  <!-- One round every 2 minutes; launchd never starts a round while the previous one runs. -->
+  <key>StartInterval</key>
+  <integer>120</integer>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>__REPO__/work/logs/deploy.log</string>
+  <key>StandardErrorPath</key>
+  <string>__REPO__/work/logs/deploy.log</string>
+</dict>
+</plist>

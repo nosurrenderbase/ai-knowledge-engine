@@ -5,6 +5,7 @@ import {areaLabel} from '@ai-knowledge-engine/kb';
 import {loadAreaConfigs, type Config} from './config.ts';
 import {Git} from './git.ts';
 import {defaultClaude, readQueue, runJob} from './job.ts';
+import {DEFAULT_BUSY_FILE, whileBusy} from './busy.ts';
 import {KbIndexer} from './kb-index.ts';
 import {jsonLogger, makeAlerter, type Logger} from './log.ts';
 import {runWorkers, Worker} from './worker.ts';
@@ -60,7 +61,10 @@ async function main(): Promise<void> {
       now,
       remoteHead: () => code.remoteHead(cfg.codeRemote, cfg.codeBranch),
       readQueue: () => readQueue(cfg),
-      runJob: job => runJob(job, {cfg, log, now, claude: defaultClaude(cfg)}),
+      runJob: job =>
+        whileBusy(process.env.KBSYNC_BUSY_FILE || DEFAULT_BUSY_FILE, {area: cfg.area, head: job.head}, () =>
+          runJob(job, {cfg, log, now, claude: defaultClaude(cfg)}),
+        ),
       afterTick: async () => indexer?.reconcile(),
     });
   };
