@@ -54,7 +54,8 @@ interface State {
   alerted?: string;
 }
 
-export type DeployResult = 'idle' | 'skipped' | 'test-failed' | 'deployed' | 'rolled-back';
+/** waiting: main is at a commit that already failed; nothing to do until the next one. */
+export type DeployResult = 'idle' | 'waiting' | 'skipped' | 'test-failed' | 'deployed' | 'rolled-back';
 
 const short = (sha: string) => sha.slice(0, 8);
 const tail = (s: string, n = 1500) => (s.length > n ? `…${s.slice(-n)}` : s);
@@ -99,7 +100,7 @@ export async function deployOnce(d: DeployDeps): Promise<DeployResult> {
   const local = await must('rev-parse', git('rev-parse', 'HEAD'));
   const remote = await must('rev-parse', git('rev-parse', `origin/${d.branch}`));
   if (local === remote) return 'idle';
-  if (state.failedSha === remote) return 'skipped';
+  if (state.failedSha === remote) return 'waiting';
 
   const guard = async (key: string, message: string): Promise<DeployResult> => {
     if (state.alerted !== `${key}:${remote}`) {

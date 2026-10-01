@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {after, before, describe, it} from 'node:test';
-import {GEN_END, GEN_START, generateCards, genBlock, manualPart} from '../src/cards.ts';
+import {GEN_END, GEN_START, generateCards, genBlock, manualPart, yamlScalar} from '../src/cards.ts';
 import {parseDoc} from '../src/docs.ts';
 import {initRepo, read, tmpDir, write} from './helpers.ts';
 
@@ -119,5 +119,15 @@ describe('genBlock / manualPart', () => {
   it('treats a card without markers as all written', () => {
     assert.equal(genBlock('işaretsiz'), null);
     assert.equal(manualPart('işaretsiz'), 'işaretsiz');
+  });
+});
+
+describe('yamlScalar', () => {
+  it('quotes values YAML would read as something else, so short commit ids survive', () => {
+    for (const v of ['06773483', '12345678', '1234e567', '0x1f', 'true', 'null']) {
+      assert.equal(parseDoc(`---\nc: ${yamlScalar(v)}\n---\n`).meta.c, v, v);
+    }
+    assert.equal(yamlScalar('a846e4c0'), 'a846e4c0');
+    assert.equal(yamlScalar('"PvP meydan okuma"'), '"PvP meydan okuma"');
   });
 });

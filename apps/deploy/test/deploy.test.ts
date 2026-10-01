@@ -137,7 +137,7 @@ describe('deployOnce', () => {
     assert.equal(git(live, 'rev-parse', 'HEAD'), before);
     assert.match(alerts[0], /deploy edilmedi: .* "bozuk değişiklik" — testler başarısız \(çıkış 1\):\nnot ok 3 - bozuk test/);
     calls = [];
-    assert.equal(await deployOnce(deps()), 'skipped');
+    assert.equal(await deployOnce(deps()), 'waiting');
     assert.ok(!calls.some(c => c.includes('npm')), 'aynı commit tekrar denenmez');
     behaviour.tests = 0;
     commit({'apps/sync/src/job.ts': 'düzeldi\n'}, 'düzeltme');

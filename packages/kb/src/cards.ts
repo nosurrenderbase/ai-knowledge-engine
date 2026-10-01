@@ -334,10 +334,19 @@ function renderCard(cls: ClassDeclaration, moduleName: string, rel: Rel, moduleF
  * Writes a generated document: frontmatter + the written part (kept from the
  * existing file, or a TODO placeholder) + the generated block.
  */
+/**
+ * A plain value YAML would not read back as the same string — digits only
+ * ("06773483" → 6773483), exponent notation ("1234e567"), booleans, null —
+ * is written quoted. Short commit ids hit this every few hundred commits.
+ */
+export function yamlScalar(v: string): string {
+  return /^[-+]?(\d[\d_]*(\.\d*)?([eE][-+]?\d+)?|0x[0-9a-f]+|0o[0-7]+|true|false|yes|no|on|off|null|~)$/i.test(v) ? JSON.stringify(v) : v;
+}
+
 export function writeCard(target: string, meta: Record<string, string>, generated: string, placeholder = MANUAL_PLACEHOLDER) {
   const frontmatter = [
     '---',
-    ...Object.entries(meta).map(([k, v]) => `${k}: ${v}`),
+    ...Object.entries(meta).map(([k, v]) => `${k}: ${yamlScalar(v)}`),
     '---',
   ].join('\n');
   let manual = placeholder;

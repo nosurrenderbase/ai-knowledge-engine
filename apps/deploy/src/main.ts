@@ -71,7 +71,7 @@ try {
       },
     },
   });
-  if (result !== 'idle') log('info', 'deploy turu bitti', {result});
+  if (result !== 'idle' && result !== 'waiting') log('info', 'deploy turu bitti', {result});
 } catch (e) {
   log('error', 'deploy turu hata verdi', {error: (e as Error).message});
   await alert(`deploy turu hata verdi: ${(e as Error).message}`);
