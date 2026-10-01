@@ -6,5 +6,9 @@
   "scripts": {
     "start": "node src/main.ts",
     "test": "node --test \"test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@ai-knowledge-engine/accounts": "*",
+    "@ai-knowledge-engine/settings": "*"
   }
 }

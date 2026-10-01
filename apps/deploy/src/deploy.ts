@@ -40,7 +40,7 @@ export interface DeployDeps {
   timeouts?: Partial<typeof TIMEOUTS>;
 }
 
-const TIMEOUTS = {install: 10 * 60_000, test: 25 * 60_000, build: 15 * 60_000, healthy: 180_000, workerStart: 90_000, poll: 3_000};
+export const TIMEOUTS = {install: 10 * 60_000, test: 25 * 60_000, build: 15 * 60_000, healthy: 180_000, workerStart: 90_000, poll: 3_000};
 
 interface State {
   deployedSha?: string;
@@ -207,16 +207,23 @@ async function apply(d: DeployDeps, t: typeof TIMEOUTS, plan: Plan, state: State
   }
 }
 
-async function waitHealthy(d: DeployDeps, t: typeof TIMEOUTS, service: Service): Promise<boolean> {
+/** Waits until a compose service reports healthy (services without a healthcheck: running). */
+export async function waitHealthy(d: Pick<DeployDeps, 'exec' | 'repo' | 'sleep'>, t: typeof TIMEOUTS, service: string): Promise<boolean> {
   for (let waited = 0; waited <= t.healthy; waited += t.poll) {
     const r = await d.exec('docker', ['compose', 'ps', '--format', '{{.Health}}', service], {cwd: d.repo});
-    if (r.code === 0 && r.out.trim() === 'healthy') return true;
+    const health = r.out.trim();
+    if (r.code === 0 && health === 'healthy') return true;
+    if (r.code === 0 && health === '') {
+      const st = await d.exec('docker', ['compose', 'ps', '--format', '{{.State}}', service], {cwd: d.repo});
+      if (st.code === 0 && st.out.trim() === 'running') return true;
+    }
     await d.sleep(t.poll);
   }
   return false;
 }
 
-async function restartWorker(d: DeployDeps, t: typeof TIMEOUTS): Promise<boolean> {
+/** Restarts the worker agent and waits for its start line in the log. */
+export async function restartWorker(d: Pick<DeployDeps, 'exec' | 'sleep' | 'workerLog' | 'workerLabel'>, t: typeof TIMEOUTS): Promise<boolean> {
   const offset = d.workerLog.size();
   const uid = process.getuid?.() ?? 501;
   const r = await d.exec('launchctl', ['kickstart', '-k', `gui/${uid}/${d.workerLabel}`]);

@@ -10,6 +10,8 @@ COPY packages/accounts/package.json packages/accounts/
 COPY packages/gamedb/package.json packages/gamedb/
 COPY packages/kb/package.json packages/kb/
 COPY packages/search/package.json packages/search/
+COPY packages/settings/package.json packages/settings/
+COPY apps/deploy/package.json apps/deploy/
 COPY apps/mcp/package.json apps/mcp/
 COPY apps/sync/package.json apps/sync/
 RUN npm ci --omit=dev --workspace @ai-knowledge-engine/mcp --no-audit --no-fund

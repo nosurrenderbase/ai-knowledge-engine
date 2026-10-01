@@ -8,6 +8,7 @@ import * as path from 'node:path';
 import {after, before, describe, it} from 'node:test';
 import {createDb, databaseUrl, migrate, type Db} from '../src/db.ts';
 import {dailyTotals, overview, purgeUsage, recentQueries, recordUsage, usageSummary} from '../src/usage.ts';
+import {finishChange, pendingChanges, recentChanges, requestChange} from '../src/settings.ts';
 import {addUser, findUser, issueToken, listTokens, listUsers, newToken, revokeToken, setDbAccess, setUserDisabled, verifyToken} from '../src/users.ts';
 
 const envFile = path.resolve(import.meta.dirname, '../../../.env');
@@ -52,7 +53,7 @@ describe('accounts (Postgres)', {skip: admin ? false : 'yerel Postgres yok (dock
   });
 
   it('migrates once and is idempotent', async () => {
-    assert.deepEqual(await migrate(db), ['001_accounts', '002_db_access']);
+    assert.deepEqual(await migrate(db), ['001_accounts', '002_db_access', '003_settings_changes']);
     assert.deepEqual(await migrate(db), []);
   });
 
@@ -154,5 +155,24 @@ describe('accounts (Postgres)', {skip: admin ? false : 'yerel Postgres yok (dock
     assert.equal(await purgeUsage(db, 90), 0);
     const {rows} = await db.query("select sum(calls)::int as calls from usage_daily where tool = 'grep'");
     assert.equal(rows[0].calls, 1, 'günlük toplam kalır');
+  });
+
+  it('queues settings changes, erases the sealed value once done, keeps the audit row', async () => {
+    const a = await requestChange(db, {requestedBy: 'muzaffer@nosurrender.studio', kind: 'set', key: 'POLL_INTERVAL_MS', sealedValue: 'v1.x', valueHint: '60000'});
+    const b = await requestChange(db, {requestedBy: 'muzaffer@nosurrender.studio', kind: 'restart', target: 'mcp'});
+    assert.deepEqual((await pendingChanges(db)).map(c => [c.id, c.kind, c.sealedValue]), [
+      [a, 'set', 'v1.x'],
+      [b, 'restart', null],
+    ]);
+    await finishChange(db, a, null);
+    await finishChange(db, b, 'mcp sağlıklı hale gelmedi');
+    assert.deepEqual(await pendingChanges(db), []);
+    const recent = await recentChanges(db);
+    assert.deepEqual(recent.map(c => [c.id, c.status, c.error, c.sealedValue]), [
+      [b, 'failed', 'mcp sağlıklı hale gelmedi', null],
+      [a, 'applied', null, null],
+    ]);
+    const {rows} = await db.query('select sealed_value from settings_changes where id = $1', [a]);
+    assert.equal(rows[0].sealed_value, null, 'şifreli değer uygulandıktan sonra silinir');
   });
 });

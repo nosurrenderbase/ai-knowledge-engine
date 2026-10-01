@@ -111,10 +111,23 @@ services:
       WORKER_STATE_DIR: /data/state
       KB_CLONE_DIR: /data/kb
       MCP_HEALTH_URL: http://mcp:8787/health
+      # System page: logs, and the tunnel checked from outside.
+      LOGS_DIR: /data/logs
+      TUNNEL_CHECK_URL: ${TUNNEL_CHECK_URL:-https://mcp.efsanebaskan.com/health}
+      # Settings page: current values (read-only; changes go through the deploy agent),
+      # the public key that seals new values, and Cloudflare Access for who may write.
+      ENV_DIR: /data/env
+      SETTINGS_PUBLIC_KEY: /data/settings/key.pub
+      CF_ACCESS_TEAM_DOMAIN: ${CF_ACCESS_TEAM_DOMAIN:-}
+      CF_ACCESS_AUD: ${CF_ACCESS_AUD:-}
     volumes:
       - ./work/deploy:/data/deploy:ro
       - ./work/state:/data/state:ro
       - ./work/kb:/data/kb:ro
+      - ./work/logs:/data/logs:ro
+      - ./work/settings/public:/data/settings:ro
+      - ./.env:/data/env/.env:ro
+      - ./deploy/kbsync.env:/data/env/kbsync.env:ro
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3100/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 15s

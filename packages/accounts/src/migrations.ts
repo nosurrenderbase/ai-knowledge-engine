@@ -65,4 +65,26 @@ create table usage_daily (
 alter table users add column db_access boolean not null default false;
 `,
   },
+  {
+    version: '003_settings_changes',
+    sql: `
+-- Settings changes requested in the panel and applied on the server by the deploy agent.
+-- The value travels sealed (only the server can open it) and is erased once applied;
+-- the row stays as the audit log: who, which key, when, result.
+create table settings_changes (
+  id           bigint generated always as identity primary key,
+  created_at   timestamptz not null default now(),
+  requested_by text not null,
+  kind         text not null check (kind in ('set', 'unset', 'restart')),
+  key          text,
+  target       text,
+  sealed_value text,
+  value_hint   text,
+  status       text not null default 'pending' check (status in ('pending', 'applied', 'failed')),
+  applied_at   timestamptz,
+  error        text
+);
+create index settings_changes_pending on settings_changes (id) where status = 'pending';
+`,
+  },
 ];

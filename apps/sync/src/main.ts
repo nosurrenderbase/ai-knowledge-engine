@@ -5,7 +5,7 @@ import {areaLabel} from '@ai-knowledge-engine/kb';
 import {loadAreaConfigs, type Config} from './config.ts';
 import {Git} from './git.ts';
 import {defaultClaude, readQueue, runJob} from './job.ts';
-import {DEFAULT_BUSY_FILE, DEFAULT_VERSION_FILE, whileBusy, writeVersionFile} from './busy.ts';
+import {DEFAULT_BUSY_FILE, DEFAULT_HEARTBEAT_FILE, DEFAULT_VERSION_FILE, whileBusy, writeHeartbeat, writeVersionFile} from './busy.ts';
 import {KbIndexer} from './kb-index.ts';
 import {jsonLogger, makeAlerter, type Logger} from './log.ts';
 import {runWorkers, Worker} from './worker.ts';
@@ -93,9 +93,16 @@ async function main(): Promise<void> {
     });
   }
   jsonLogger('info', 'kbsync başladı', {areas: configs.map(c => c.area), pollIntervalMs: base.pollIntervalMs, dryRun: base.dryRun});
-  await runWorkers(workers, controller.signal, async (ms, signal) => {
-    await delay(ms, undefined, {signal}).catch(() => undefined);
-  }, now);
+  const heartbeat = process.env.KBSYNC_HEARTBEAT_FILE || DEFAULT_HEARTBEAT_FILE;
+  await runWorkers(
+    workers,
+    controller.signal,
+    async (ms, signal) => {
+      await delay(ms, undefined, {signal}).catch(() => undefined);
+    },
+    now,
+    results => writeHeartbeat(heartbeat, results),
+  );
   await closeRedis();
 }
 

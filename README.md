@@ -10,6 +10,7 @@ Efsane Başkan bilgi tabanını ([`ai-knowledge-base`](https://github.com/nosurr
 | `apps/panel` | Yönetim paneli (Next.js + Ant Design): kullanıcılar ve token'lar, kullanım, sorular, arama denemesi; `npm run dev -w @ai-knowledge-engine/panel` (port 3100), giriş `.env`'deki `PANEL_PASSWORD` |
 | [`packages/kb`](packages/kb/src/index.ts) | Ortak parçalar: doküman okuma, backend use case kartları, frontend modeli ve kartları (API ve ekran kartları, API haritası, kullanılmayan kod), maç motoru modeli ve kartları (stat → çarpan → kullanıldığı yer, oyun stilleri), chunk'lama |
 | [`packages/gamedb`](packages/gamedb/src/policy.ts) | Oyun veritabanına (MongoDB) salt okunur erişim: izinli koleksiyonlar, kişisel veriyi reddeden sorgu denetimi ve maskeleme, hazır görünümler (takım, maç, lig tablosu) |
+| [`packages/settings`](packages/settings/src/catalog.ts) | Panelden değiştirilebilen ayarların kataloğu, `.env` düzenleme (yorum ve sıra korunur), değerlerin şifrelenmesi |
 | [`packages/accounts`](packages/accounts/src/cli.ts) | Kullanıcılar, kişiye özel token'lar, kullanım kaydı (Postgres); `npm run users` |
 | [`packages/search`](packages/search/src/index.ts) | Arama: Voyage embedding (voyage-4-large), Redis indeksi (vektör + Türkçe tam metin), hibrit sorgu, indeks senkronu, arama ölçümü |
 | [`prompts/backend`](prompts/backend), [`prompts/frontend`](prompts/frontend), [`prompts/mac-motoru`](prompts/mac-motoru) | Alan başına `PROMPT.md` (yazım kuralları), `UPDATE-PROMPT.md` (otomatik güncelleme kuralları ve sistem prompt'u), `TEMPLATE-flow.md` |
@@ -59,5 +60,28 @@ Bu repo'nun main'ine push edilen her commit bu makinede kendiliğinden canlıya 
 Panelin genel bakış sayfasındaki **Sürümler** kartı canlı commit'i, her servisin (işçi, MCP, panel) gerçekte çalıştırdığı commit'i, işçinin şu an bir iş yürütüp yürütmediğini ve her bilgi tabanı alanının işlediği son kod commit'ini gösterir. Elle derleme yaparken commit'i imaja yazmak için: `GIT_SHA=$(git rev-parse HEAD) docker compose up -d --build`.
 
 Her adım `work/logs/deploy.log`'a, deploy/atlama/hata/geri alma `ALERT_WEBHOOK_URL`'e gider; canlıdaki commit `work/deploy/state.json`'da. **Sunucudaki klonda elle düzenleme yapılmaz**: commit edilmemiş değişiklik varsa deploy durur ve alarm verir. Elle bir tur: `deploy/run-deploy.sh`.
+
+## Panel: Sistem
+
+**Durum** sekmesi Redis, Postgres, MCP, oyun veritabanı, Cloudflare tüneli (dışarıdan), işçi (alan başına sıra durumu), deploy ajanı ve diski yoklar; işçi ve deploy loglarındaki son uyarı/hataları gösterir.
+
+**Ayarlar** sekmesi [`packages/settings/src/catalog.ts`](packages/settings/src/catalog.ts)'teki anahtarları gösterir (sırların yalnız son 4 karakteri). Değiştirme:
+
+1. Panel yalnız Cloudflare Access ile doğrulanmış bir kişiye yazma izni verir (`CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`; ikisi yoksa salt okunur).
+2. Yeni değer panelde sunucunun açık anahtarıyla şifrelenip Postgres'teki `settings_changes` sırasına yazılır. Özel anahtar yalnız `work/settings/`'te durur; panel ve veritabanı değeri açamaz.
+3. Deploy ajanı (2 dakikada bir) değeri açar, katalogla tekrar doğrular, dosyanın yedeğini alır (`work/settings/backups/`), yazar, anahtarı okuyan servisi yeniden başlatır, sağlık kontrolü yapar; olmazsa eski dosyayı geri koyar. Uygulanınca şifreli değer silinir; satır, kimin neyi ne zaman değiştirdiğinin kaydı olarak kalır.
+
+Panelin kendini kilitleyebileceği anahtarlar (Postgres ve Redis parolası, tünel token'ı, Access ayarları, repo yolları) panelde salt okunurdur; sunucuda elle değiştirilir.
+
+### Cloudflare Access kurulumu
+
+1. Cloudflare Zero Trust > Access > Applications > Add an application > Self-hosted: alan adı `panel.efsanebaskan.com`.
+2. Policy: Allow, Include > Emails ending in `@nosurrender.studio` (giriş yöntemi: Google ya da tek kullanımlık kod).
+3. Uygulamanın Overview sekmesindeki **Application Audience (AUD) Tag** ve takım alanını (Settings > Custom Pages'te görünen `<takım>.cloudflareaccess.com`) sunucudaki `.env`'ye yaz:
+   ```
+   CF_ACCESS_TEAM_DOMAIN=<takım>.cloudflareaccess.com
+   CF_ACCESS_AUD=<AUD etiketi>
+   ```
+4. `docker compose up -d panel`.
 
 Node.js 22.18+ gerekir; TypeScript derlenmeden, doğrudan çalıştırılır.

@@ -13,6 +13,8 @@ export interface HttpOptions {
   log: (level: 'info' | 'warn' | 'error', msg: string, fields?: Record<string, unknown>) => void;
   /** Whether the data store is reachable; while false, /health is 503 and /mcp refuses politely. */
   ready?: () => boolean;
+  /** Extra fields for /health (e.g. the game database's reachability). */
+  status?: () => Record<string, unknown>;
 }
 
 const MAX_BODY = 1024 * 1024;
@@ -54,7 +56,7 @@ export function createHttpServer(services: Services, opts: HttpOptions): http.Se
   return http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const ready = opts.ready?.() ?? true;
-    if (url.pathname === '/health') return json(res, ready ? 200 : 503, {ok: ready, version: process.env.APP_VERSION ?? null});
+    if (url.pathname === '/health') return json(res, ready ? 200 : 503, {ok: ready, version: process.env.APP_VERSION ?? null, ...opts.status?.()});
     if (url.pathname !== '/mcp') return json(res, 404, {error: 'bulunamadı'});
     if (!ready) return json(res, 503, rpcError(-32002, 'bilgi tabanı şu an erişilemiyor, biraz sonra tekrar dene'));
     const token = bearer(req);

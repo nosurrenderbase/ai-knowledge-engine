@@ -11,7 +11,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 import {DEFAULT_BUSY_FILE, isBusy} from '../../sync/src/busy.ts';
-import {deployOnce, type Exec} from './deploy.ts';
+import {createDb, databaseUrl, finishChange, pendingChanges} from '@ai-knowledge-engine/accounts';
+import {deployOnce, type DeployDeps, type Exec} from './deploy.ts';
+import {applySettings, ensureKeys} from './settings.ts';
 
 const REPO = path.resolve(import.meta.dirname, '../../..');
 const WORKER_LOG = path.join(REPO, 'work/logs/kbsync.log');
@@ -43,37 +45,74 @@ async function alert(text: string): Promise<void> {
   }
 }
 
-try {
-  const result = await deployOnce({
-    repo: REPO,
-    candidate: path.join(REPO, 'work/deploy/candidate'),
-    stateFile: path.join(REPO, 'work/deploy/state.json'),
-    branch: process.env.DEPLOY_BRANCH || 'main',
-    workerLabel: 'dev.nosurrender.kbsync',
-    exec,
-    log,
-    alert,
-    sleep: ms => delay(ms),
-    workerBusy: () => isBusy(process.env.KBSYNC_BUSY_FILE || DEFAULT_BUSY_FILE),
-    workerLog: {
-      size: () => (fs.existsSync(WORKER_LOG) ? fs.statSync(WORKER_LOG).size : 0),
-      since: offset => {
-        if (!fs.existsSync(WORKER_LOG)) return '';
-        const fd = fs.openSync(WORKER_LOG, 'r');
-        try {
-          const len = Math.max(0, fs.fstatSync(fd).size - offset);
-          const buf = Buffer.alloc(len);
-          fs.readSync(fd, buf, 0, len, offset);
-          return buf.toString('utf8');
-        } finally {
-          fs.closeSync(fd);
-        }
-      },
+const STATE_FILE = path.join(REPO, 'work/deploy/state.json');
+const HEARTBEAT = path.join(REPO, 'work/deploy/heartbeat.json');
+
+const base: DeployDeps = {
+  repo: REPO,
+  candidate: path.join(REPO, 'work/deploy/candidate'),
+  stateFile: STATE_FILE,
+  branch: process.env.DEPLOY_BRANCH || 'main',
+  workerLabel: 'dev.nosurrender.kbsync',
+  exec,
+  log,
+  alert,
+  sleep: ms => delay(ms),
+  workerBusy: () => isBusy(process.env.KBSYNC_BUSY_FILE || DEFAULT_BUSY_FILE),
+  workerLog: {
+    size: () => (fs.existsSync(WORKER_LOG) ? fs.statSync(WORKER_LOG).size : 0),
+    since: offset => {
+      if (!fs.existsSync(WORKER_LOG)) return '';
+      const fd = fs.openSync(WORKER_LOG, 'r');
+      try {
+        const len = Math.max(0, fs.fstatSync(fd).size - offset);
+        const buf = Buffer.alloc(len);
+        fs.readSync(fd, buf, 0, len, offset);
+        return buf.toString('utf8');
+      } finally {
+        fs.closeSync(fd);
+      }
     },
+  },
+};
+
+/** A worker restart that must wait for the running job (the deploy round does it later). */
+function deferWorker(): void {
+  const state = fs.existsSync(STATE_FILE) ? JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')) : {};
+  state.pendingWorker = true;
+  fs.mkdirSync(path.dirname(STATE_FILE), {recursive: true});
+  fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 1) + '\n');
+}
+
+const heartbeat: {at: string; result?: string; settings?: number; error?: string} = {at: new Date().toISOString()};
+
+// 1. Settings changes from the panel (Postgres may be down after a reboot: then next round).
+ensureKeys(path.join(REPO, 'work/settings'));
+const db = createDb({url: databaseUrl(process.env)});
+db.on('error', () => {});
+try {
+  heartbeat.settings = await applySettings({
+    ...base,
+    keysDir: path.join(REPO, 'work/settings'),
+    store: {pending: () => pendingChanges(db), finish: (id, error) => finishChange(db, id, error)},
+    deferWorker,
   });
+} catch (e) {
+  log('warn', 'ayar sırası okunamadı', {error: (e as Error).message});
+} finally {
+  await db.end().catch(() => {});
+}
+
+// 2. New commits of this repo.
+try {
+  const result = await deployOnce(base);
+  heartbeat.result = result;
   if (result !== 'idle' && result !== 'waiting') log('info', 'deploy turu bitti', {result});
 } catch (e) {
+  heartbeat.error = (e as Error).message;
   log('error', 'deploy turu hata verdi', {error: (e as Error).message});
   await alert(`deploy turu hata verdi: ${(e as Error).message}`);
   process.exitCode = 1;
 }
+fs.mkdirSync(path.dirname(HEARTBEAT), {recursive: true});
+fs.writeFileSync(HEARTBEAT, JSON.stringify(heartbeat) + '\n');

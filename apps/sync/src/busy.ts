@@ -10,6 +10,17 @@ import * as path from 'node:path';
 const REPO_ROOT = path.resolve(import.meta.dirname, '../../..');
 export const DEFAULT_BUSY_FILE = path.join(REPO_ROOT, 'work/state/kbsync-busy.json');
 export const DEFAULT_VERSION_FILE = path.join(REPO_ROOT, 'work/state/kbsync-version.json');
+export const DEFAULT_HEARTBEAT_FILE = path.join(REPO_ROOT, 'work/state/kbsync-heartbeat.json');
+
+/** After every round: when it ran and how each area's queue looked (idle, drained, blocked, limited, failed). */
+export function writeHeartbeat(file: string, results: {area: string; result: {kind: string}}[]): void {
+  try {
+    fs.mkdirSync(path.dirname(file), {recursive: true});
+    fs.writeFileSync(file, JSON.stringify({at: new Date().toISOString(), areas: results.map(r => ({area: r.area, ...r.result}))}) + '\n');
+  } catch {
+    // the panel just shows the heartbeat as stale
+  }
+}
 
 /** Records which commit of this repo the worker process loaded, for the panel's version card. */
 export function writeVersionFile(file: string, repo = REPO_ROOT): void {

@@ -90,7 +90,15 @@ const areas = new Map(
 // Game database (read-only user): optional; without it the db tools are not offered.
 const mongoUri = process.env.MONGO_RO_URI?.trim();
 const gamedb = mongoUri ? new GameDb(mongoUri, process.env.MONGO_RO_DB?.trim() || undefined) : undefined;
-if (gamedb) void gamedb.ping().then(ok => log(ok ? 'info' : 'warn', ok ? 'oyun veritabanına bağlanıldı' : 'oyun veritabanına şimdilik bağlanılamadı'));
+let gamedbOk: boolean | null = gamedb ? false : null;
+if (gamedb) {
+  void gamedb.ping().then(ok => {
+    gamedbOk = ok;
+    log(ok ? 'info' : 'warn', ok ? 'oyun veritabanına bağlanıldı' : 'oyun veritabanına şimdilik bağlanılamadı');
+  });
+  // For /health (the panel's system page): checked once a minute.
+  setInterval(() => void gamedb.ping().then(ok => (gamedbOk = ok)), 60_000).unref();
+}
 
 const services = {
   areas,
@@ -104,6 +112,7 @@ const host = process.env.MCP_HOST ?? '127.0.0.1';
 const server = createHttpServer(services, {
   log,
   ready: () => redis.isReady && dbReady,
+  status: () => ({gamedb: gamedbOk}),
   authenticate: async token => (isShared(token) ? legacy : verifyToken(db, token)),
 });
 server.listen(port, host, () =>

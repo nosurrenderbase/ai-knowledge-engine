@@ -106,6 +106,10 @@ export class Worker {
     }
   }
 
+  get area(): string {
+    return this.deps.cfg.area;
+  }
+
   get pollIntervalMs(): number {
     return this.deps.cfg.pollIntervalMs;
   }
@@ -138,15 +142,20 @@ export async function runWorkers(
   signal: AbortSignal,
   sleep: (ms: number, signal: AbortSignal) => Promise<void>,
   now: () => Date,
+  /** Called after every round with each area's result (the panel's heartbeat). */
+  onRound?: (results: {area: string; result: TickResult}[]) => void,
 ): Promise<void> {
   while (!signal.aborted) {
     let until: Date | null = null;
+    const results: {area: string; result: TickResult}[] = [];
     for (const w of workers) {
       if (signal.aborted) return;
       const result = await w.tick();
       await w.afterTick();
+      results.push({area: w.area, result});
       if (result.kind === 'limited' && (!until || result.until > until)) until = result.until;
     }
+    onRound?.(results);
     const poll = Math.min(...workers.map(w => w.pollIntervalMs));
     await sleep(until ? Math.max(until.getTime() - now().getTime(), 0) : poll, signal);
   }

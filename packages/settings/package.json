@@ -1,0 +1,12 @@
+{
+  "name": "@ai-knowledge-engine/settings",
+  "private": true,
+  "type": "module",
+  "description": "Panelden değiştirilebilen ayarların kataloğu, .env dosyası düzenleme ve değerlerin şifrelenmesi",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.ts\""
+  }
+}

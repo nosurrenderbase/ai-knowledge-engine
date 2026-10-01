@@ -29,3 +29,4 @@ export {
   type User,
   type UserRow,
 } from './users.ts';
+export {finishChange, pendingChanges, recentChanges, requestChange, type ChangeKind, type ChangeStatus, type SettingsChange} from './settings.ts';

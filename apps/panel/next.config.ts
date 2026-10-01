@@ -7,6 +7,7 @@ const config: NextConfig = {
     '@ai-knowledge-engine/accounts',
     '@ai-knowledge-engine/search',
     '@ai-knowledge-engine/kb',
+    '@ai-knowledge-engine/settings',
     'pg',
     'redis',
     'ts-morph',

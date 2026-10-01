@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {describe, it} from 'node:test';
-import {isBusy, whileBusy, writeVersionFile} from '../src/busy.ts';
+import {isBusy, whileBusy, writeHeartbeat, writeVersionFile} from '../src/busy.ts';
 import {tmpDir} from './helpers/repos.ts';
 
 describe('busy file', () => {
@@ -32,5 +32,13 @@ describe('busy file', () => {
     assert.equal(v.pid, process.pid);
     writeVersionFile(file, tmpDir());
     assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).sha, 'unknown', 'git deposu değilse');
+  });
+
+  it('records each round for the panel', () => {
+    const file = path.join(tmpDir(), 'state/hb.json');
+    writeHeartbeat(file, [{area: 'backend', result: {kind: 'idle'}}, {area: 'frontend', result: {kind: 'blocked'}}]);
+    const hb = JSON.parse(fs.readFileSync(file, 'utf8'));
+    assert.deepEqual(hb.areas, [{area: 'backend', kind: 'idle'}, {area: 'frontend', kind: 'blocked'}]);
+    assert.ok(Date.parse(hb.at));
   });
 });
