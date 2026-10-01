@@ -75,7 +75,12 @@ var styleRegistry = map[string][]styleEffect{
 type PlayerBrain struct{ attr Attr }
 
 func (pb *PlayerBrain) SetAttr(a Attr) {
+	pb.height = a.Height
 	pb.speed *= pb.attr.SpeedFactor()
+}
+
+func (pb *PlayerBrain) header() bool {
+	return pb.height > 190
 }
 `,
   'internal/match/match.go': `package match
@@ -178,6 +183,7 @@ describe('match engine model and documents', () => {
     assert.deepEqual(m.callSites.get('SpeedFactor')?.map(s => s.func), ['PlayerBrain.SetAttr']);
     assert.deepEqual(usersOf(m, 'Tackle').map(u => u.func.name), ['Match.checkFoul'], 'attrOf(x).Tackle doğrudan okuma sayılır');
     assert.deepEqual(usersOf(m, 'ShortPassing').map(u => [u.func.name, u.via]), [['Attr.CompletionFactor', []], ['Match.checkFoul', ['CompletionFactor']]]);
+    assert.deepEqual(usersOf(m, 'Height').map(u => u.func.name), ['PlayerBrain.header'], 'kopyadan (pb.height = a.Height) okuma sayılır');
     assert.ok(inPool(m, 'Tackle'), 'engineStats listesi kullanıcı değil, havuz sayılır');
     assert.deepEqual(m.aliases.get('Kicking'), {targets: ['ShortPassing'], when: 'p.IsGoalkeeper()'});
     assert.deepEqual(m.styles.map(s => [s.name, s.effects, s.note]), [

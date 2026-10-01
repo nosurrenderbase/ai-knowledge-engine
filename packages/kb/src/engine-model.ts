@@ -226,6 +226,14 @@ export function buildEngineModel(sourceDir: string): EngineModel {
   const allFiles = SIM_DIRS.flatMap(d => goFiles(sourceDir, d));
   for (const f of allFiles) raw.push(...parseFuncs(f, read(sourceDir, f)));
   const attrMethods = new Set(raw.filter(f => f.receiver === 'Attr').map(f => f.method));
+  // Copies into another struct ("pb.foot = a.Foot" in SetAttr): reads of the copy count as reads of the field.
+  const copies = new Map<string, string>();
+  for (const f of raw) {
+    for (const l of f.body) {
+      const m = l.match(/^\s*\w+\.([a-z]\w*)\s*=\s*\w+\.([A-Z]\w*)\s*$/);
+      if (m && fieldSet.has(m[2])) copies.set(m[1], m[2]);
+    }
+  }
 
   const funcs: EngineFunc[] = [];
   for (const f of raw) {
@@ -239,6 +247,10 @@ export function buildEngineModel(sourceDir: string): EngineModel {
     const own = f.receiver === 'Attr' && f.recvVar ? `\\b${f.recvVar}` : null;
     const fieldRe = new RegExp(`(?:${own ? own + '|' : ''}\\b\\w*[aA]ttr\\w*(?:\\([^()]*\\))?)\\.([A-Z]\\w*)\\b`, 'g');
     for (const m of text.matchAll(fieldRe)) if (fieldSet.has(m[1])) reads.add(m[1]);
+    for (const [member, field] of copies) {
+      const readRe = new RegExp(`\\.${member}\\b(?!\\s*=[^=])`);
+      if (f.body.some(l => !/^\s*\/\//.test(l) && readRe.test(l))) reads.add(field);
+    }
     for (const m of text.matchAll(/\.([A-Za-z]\w*)\(/g)) if (attrMethods.has(m[1]) && !(f.receiver === 'Attr' && m[1] === f.method)) calls.add(m[1]);
     const gains: Gain[] = [];
     for (const m of text.matchAll(/\battrFactor\(/g)) {
