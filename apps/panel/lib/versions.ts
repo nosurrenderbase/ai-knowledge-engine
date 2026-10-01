@@ -12,6 +12,8 @@ import {AREA_REPOS, AREAS} from './areas';
 export interface ServiceVersion {
   name: string;
   sha: string | null;
+  /** What the last deploy that touched this service put live; null before the first such deploy. */
+  expected: string | null;
   since?: string | null;
   note?: string;
 }
@@ -37,7 +39,15 @@ function readJson<T>(file: string | undefined): T | null {
 const known = (v: string | undefined | null) => (v && v !== 'unknown' ? v : null);
 
 export async function readVersions(env = process.env): Promise<Versions> {
-  const state = readJson<{deployedSha?: string; deployedAt?: string; previousSha?: string; failedSha?: string; pendingWorker?: boolean}>(env.DEPLOY_STATE_FILE);
+  const state = readJson<{
+    deployedSha?: string;
+    deployedAt?: string;
+    previousSha?: string;
+    failedSha?: string;
+    pendingWorker?: boolean;
+    services?: Record<string, string>;
+  }>(env.DEPLOY_STATE_FILE);
+  const expected = (k: string) => state?.services?.[k] ?? null;
   const stateDir = env.WORKER_STATE_DIR;
   const worker = readJson<{sha?: string; startedAt?: string}>(stateDir && path.join(stateDir, 'kbsync-version.json'));
   const busy = readJson<{area: string; head: string; since: string}>(stateDir && path.join(stateDir, 'kbsync-busy.json'));
@@ -65,9 +75,9 @@ export async function readVersions(env = process.env): Promise<Versions> {
     failedSha: state?.failedSha ?? null,
     pendingWorker: Boolean(state?.pendingWorker),
     services: [
-      {name: 'İşçi (kbsync)', sha: known(worker?.sha), since: worker?.startedAt ?? null},
-      {name: 'MCP sunucusu', sha: known(mcp?.version), note: mcp ? undefined : 'erişilemedi'},
-      {name: 'Panel', sha: known(env.APP_VERSION)},
+      {name: 'İşçi', sha: known(worker?.sha), expected: expected('worker'), since: worker?.startedAt ?? null},
+      {name: 'MCP', sha: known(mcp?.version), expected: expected('mcp'), note: mcp ? undefined : 'erişilemiyor'},
+      {name: 'Panel', sha: known(env.APP_VERSION), expected: expected('panel')},
     ],
     busy,
     areas: AREAS.map(area => ({area, sourceCommit: sourceCommit(area), repo: AREA_REPOS[area]})),

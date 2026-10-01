@@ -50,7 +50,7 @@ export function Shell({children}: {children: ReactNode}) {
       </Layout.Sider>
       <Layout.Content style={{padding: '28px 32px'}}>
         {/* key: the rise animation replays on every page change */}
-        <div key={path} className="kb-page" style={{maxWidth: 1440, margin: '0 auto'}}>
+        <div key={path} className="kb-page" style={{maxWidth: 1320}}>
           {children}
         </div>
       </Layout.Content>

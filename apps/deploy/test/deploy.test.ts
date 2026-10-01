@@ -125,7 +125,12 @@ describe('deployOnce', () => {
     assert.deepEqual(builtWith, [sha], 'imaja canlıya alınan commit yazılır');
     assert.ok(calls.some(c => c.startsWith('launchctl kickstart -k gui/')));
     assert.match(alerts[0], /^deploy edildi: [0-9a-f]{8} "MCP ve işçi değişti" \(işçi, mcp\)/);
-    assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'live/work/deploy/state.json'), 'utf8')).deployedSha, sha);
+    const st = JSON.parse(fs.readFileSync(path.join(root, 'live/work/deploy/state.json'), 'utf8'));
+    assert.equal(st.deployedSha, sha);
+    assert.deepEqual(st.services, {mcp: sha, worker: sha}, 'yeniden başlatılan servislerin beklenen sürümü');
+    const panelOnly = commit({'apps/panel/app/page.tsx': 'p\n'}, 'yalnız panel');
+    assert.equal(await deployOnce(deps()), 'deployed');
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(root, 'live/work/deploy/state.json'), 'utf8')).services, {mcp: sha, worker: sha, panel: panelOnly}, 'dokunulmayan servis eski commit\'te güncel sayılır');
     assert.equal(await deployOnce(deps()), 'idle');
   });
 

@@ -50,6 +50,11 @@ interface State {
   failedSha?: string;
   /** The worker needs a restart that had to wait for a running job. */
   pendingWorker?: boolean;
+  /**
+   * The commit each service should be running: set when a deploy restarts it.
+   * A deploy that does not touch a service leaves it current (the panel compares against this).
+   */
+  services?: Partial<Record<'worker' | Service, string>>;
   /** Last guard problem alerted (to alert once). */
   alerted?: string;
 }
@@ -91,6 +96,7 @@ export async function deployOnce(d: DeployDeps): Promise<DeployResult> {
   if (state.pendingWorker && !d.workerBusy()) {
     if (await restartWorker(d, t)) {
       state.pendingWorker = false;
+      if (state.deployedSha) state.services = {...state.services, worker: state.deployedSha};
       save();
       d.log('info', 'bekleyen işçi yeniden başlatması yapıldı');
     }
@@ -187,11 +193,13 @@ async function apply(d: DeployDeps, t: typeof TIMEOUTS, plan: Plan, state: State
       if (r.code !== 0) return {ok: false, error: `docker compose: ${tail(r.out, 400)}`};
       for (const s of services === 'all' ? (['mcp', 'panel'] as Service[]) : services) {
         if (!(await waitHealthy(d, t, s))) return {ok: false, error: `${s} sağlıklı hale gelmedi`};
+        state.services = {...state.services, [s]: sha};
       }
     }
     if (plan.worker) {
       if (d.workerBusy()) state.pendingWorker = true;
       else if (!(await restartWorker(d, t))) return {ok: false, error: 'işçi yeniden başlamadı'};
+      else state.services = {...state.services, worker: sha};
     }
     return {ok: true};
   } catch (e) {
