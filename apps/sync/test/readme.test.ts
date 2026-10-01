@@ -38,6 +38,16 @@ describe('updateReadmeStatus', () => {
     fs.rmSync(dir, {recursive: true});
   });
 
+  it('counts flows and metric cards in the match engine wording', () => {
+    const dir = tmpDir();
+    write(dir, 'README.md', '- 0 akış dokümanı (`flows/`), 0 metrik kartı (`metrikler/`).\n');
+    write(dir, 'flows/a/x.md', 'x');
+    for (const n of [1, 2]) write(dir, `metrikler/m${n}.md`, 'm');
+    updateReadmeStatus(dir, 'deadbeef', new Date(2026, 9, 1));
+    assert.match(read(dir, 'README.md'), /1 akış dokümanı \(`flows\/`\), 2 metrik kartı \(`metrikler\/`\)/);
+    fs.rmSync(dir, {recursive: true});
+  });
+
   it('leaves unrecognised wording and missing READMEs alone', () => {
     const dir = tmpDir();
     assert.doesNotThrow(() => updateReadmeStatus(dir, 'x', new Date()));

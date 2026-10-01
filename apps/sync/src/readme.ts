@@ -27,6 +27,10 @@ export function updateReadmeStatus(areaDir: string, commit: string, date: Date):
     .replace(
       /\d+ akış dokümanı \(`flows\/`\), \d+ API kartı \(`api\/`\), \d+ ekran kartı \(`ekranlar\/`\)/,
       `${count('flows')} akış dokümanı (\`flows/\`), ${count('api')} API kartı (\`api/\`), ${count('ekranlar')} ekran kartı (\`ekranlar/\`)`,
+    )
+    .replace(
+      /\d+ akış dokümanı \(`flows\/`\), \d+ metrik kartı \(`metrikler\/`\)/,
+      `${count('flows')} akış dokümanı (\`flows/\`), ${count('metrikler')} metrik kartı (\`metrikler/\`)`,
     );
   fs.writeFileSync(file, text);
 }
