@@ -3,10 +3,25 @@
  * (apps/deploy) restarts the worker only between jobs: a restart mid-job
  * throws away a Claude run that can take an hour.
  */
+import {execFileSync} from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-export const DEFAULT_BUSY_FILE = path.resolve(import.meta.dirname, '../../../work/state/kbsync-busy.json');
+const REPO_ROOT = path.resolve(import.meta.dirname, '../../..');
+export const DEFAULT_BUSY_FILE = path.join(REPO_ROOT, 'work/state/kbsync-busy.json');
+export const DEFAULT_VERSION_FILE = path.join(REPO_ROOT, 'work/state/kbsync-version.json');
+
+/** Records which commit of this repo the worker process loaded, for the panel's version card. */
+export function writeVersionFile(file: string, repo = REPO_ROOT): void {
+  let sha = 'unknown';
+  try {
+    sha = execFileSync('git', ['rev-parse', 'HEAD'], {cwd: repo, encoding: 'utf8'}).trim();
+  } catch {
+    // not a git checkout (tests, copies): the panel shows "unknown"
+  }
+  fs.mkdirSync(path.dirname(file), {recursive: true});
+  fs.writeFileSync(file, JSON.stringify({sha, startedAt: new Date().toISOString(), pid: process.pid}) + '\n');
+}
 
 /** Runs fn with the busy file present; it is removed afterwards even if fn throws. */
 export async function whileBusy<T>(file: string, info: Record<string, unknown>, fn: () => Promise<T>): Promise<T> {

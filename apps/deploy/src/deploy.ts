@@ -19,7 +19,7 @@ export interface ExecResult {
   code: number;
   out: string;
 }
-export type Exec = (cmd: string, args: string[], opts?: {cwd?: string; timeoutMs?: number}) => Promise<ExecResult>;
+export type Exec = (cmd: string, args: string[], opts?: {cwd?: string; timeoutMs?: number; env?: Record<string, string>}) => Promise<ExecResult>;
 type Level = 'info' | 'warn' | 'error';
 
 export interface DeployDeps {
@@ -123,7 +123,7 @@ export async function deployOnce(d: DeployDeps): Promise<DeployResult> {
   const plan = planDeploy(changed);
   d.log('info', 'canlıya alınıyor', {to: short(remote), plan: describePlan(plan)});
   await must('merge', git('merge', '-q', '--ff-only', remote));
-  const applied = await apply(d, t, plan, state);
+  const applied = await apply(d, t, plan, state, remote);
 
   if (applied.ok) {
     Object.assign(state, {deployedSha: remote, deployedAt: new Date().toISOString(), previousSha: local, failedSha: undefined, alerted: undefined});
@@ -137,7 +137,7 @@ export async function deployOnce(d: DeployDeps): Promise<DeployResult> {
   // 3. Roll back to the previous commit and bring the same parts up again.
   d.log('error', 'sağlık kontrolü başarısız, geri alınıyor', {to: short(remote), error: applied.error});
   await must('reset', git('reset', '-q', '--hard', local));
-  const back = await apply(d, t, plan, state);
+  const back = await apply(d, t, plan, state, local);
   state.failedSha = remote;
   save();
   await d.alert(
@@ -160,7 +160,8 @@ async function prepareCandidate(d: DeployDeps, sha: string, must: (what: string,
   if (!fs.existsSync(env) && fs.existsSync(path.join(d.repo, '.env'))) fs.symlinkSync(path.join(d.repo, '.env'), env);
 }
 
-async function apply(d: DeployDeps, t: typeof TIMEOUTS, plan: Plan, state: State): Promise<{ok: true} | {ok: false; error: string}> {
+/** sha: the commit now checked out, baked into rebuilt images (their version on the panel). */
+async function apply(d: DeployDeps, t: typeof TIMEOUTS, plan: Plan, state: State, sha: string): Promise<{ok: true} | {ok: false; error: string}> {
   try {
     if (plan.npmCi) {
       const r = await d.exec('npm', ['ci', '--no-audit', '--no-fund'], {cwd: d.repo, timeoutMs: t.install});
@@ -168,7 +169,7 @@ async function apply(d: DeployDeps, t: typeof TIMEOUTS, plan: Plan, state: State
     }
     const services: Service[] | 'all' = plan.composeAll ? 'all' : plan.services;
     if (services === 'all' || services.length) {
-      const r = await d.exec('docker', ['compose', 'up', '-d', '--build', ...(services === 'all' ? [] : services)], {cwd: d.repo, timeoutMs: t.build});
+      const r = await d.exec('docker', ['compose', 'up', '-d', '--build', ...(services === 'all' ? [] : services)], {cwd: d.repo, timeoutMs: t.build, env: {GIT_SHA: sha}});
       if (r.code !== 0) return {ok: false, error: `docker compose: ${tail(r.out, 400)}`};
       for (const s of services === 'all' ? (['mcp', 'panel'] as Service[]) : services) {
         if (!(await waitHealthy(d, t, s))) return {ok: false, error: `${s} sağlıklı hale gelmedi`};

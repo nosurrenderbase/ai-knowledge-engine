@@ -21,7 +21,7 @@ const log = (level: 'info' | 'warn' | 'error', msg: string, fields?: Record<stri
 
 const exec: Exec = (cmd, args, opts = {}) =>
   new Promise(resolve => {
-    const child = spawn(cmd, args, {cwd: opts.cwd ?? REPO, env: process.env});
+    const child = spawn(cmd, args, {cwd: opts.cwd ?? REPO, env: {...process.env, ...opts.env}});
     let out = '';
     child.stdout.on('data', b => (out += b));
     child.stderr.on('data', b => (out += b));

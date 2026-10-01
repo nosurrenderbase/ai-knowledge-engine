@@ -51,6 +51,8 @@ services:
     build:
       context: .
       dockerfile: apps/mcp/Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
     restart: unless-stopped
     depends_on:
       redis:
@@ -85,6 +87,8 @@ services:
     build:
       context: .
       dockerfile: apps/panel/Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
     restart: unless-stopped
     depends_on:
       redis:
@@ -102,6 +106,15 @@ services:
       VOYAGE_API_KEY: ${VOYAGE_API_KEY}
       VOYAGE_API_URL: ${VOYAGE_API_URL}
       VOYAGE_MODEL: ${VOYAGE_MODEL:-voyage-4-large}
+      # Versions card: what the deploy job, the worker and the knowledge base clone say (read-only).
+      DEPLOY_STATE_FILE: /data/deploy/state.json
+      WORKER_STATE_DIR: /data/state
+      KB_CLONE_DIR: /data/kb
+      MCP_HEALTH_URL: http://mcp:8787/health
+    volumes:
+      - ./work/deploy:/data/deploy:ro
+      - ./work/state:/data/state:ro
+      - ./work/kb:/data/kb:ro
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3100/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 15s

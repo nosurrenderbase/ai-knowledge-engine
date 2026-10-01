@@ -54,7 +54,7 @@ export function createHttpServer(services: Services, opts: HttpOptions): http.Se
   return http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const ready = opts.ready?.() ?? true;
-    if (url.pathname === '/health') return json(res, ready ? 200 : 503, {ok: ready});
+    if (url.pathname === '/health') return json(res, ready ? 200 : 503, {ok: ready, version: process.env.APP_VERSION ?? null});
     if (url.pathname !== '/mcp') return json(res, 404, {error: 'bulunamadı'});
     if (!ready) return json(res, 503, rpcError(-32002, 'bilgi tabanı şu an erişilemiyor, biraz sonra tekrar dene'));
     const token = bearer(req);

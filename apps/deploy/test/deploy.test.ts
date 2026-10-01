@@ -37,6 +37,7 @@ describe('deployOnce', () => {
   let alerts: string[];
   let behaviour: {tests: number; health: string; busy: boolean};
   let workerLog: string;
+  let builtWith: string[];
 
   const commit = (files: Record<string, string>, msg: string) => {
     for (const [f, c] of Object.entries(files)) {
@@ -50,6 +51,7 @@ describe('deployOnce', () => {
   };
 
   const exec: Exec = async (cmd, args, opts = {}) => {
+    if (opts.env?.GIT_SHA) builtWith.push(opts.env.GIT_SHA);
     calls.push(`${cmd} ${args.join(' ')}`.replace(root, '<root>').replaceAll(root, '<root>'));
     if (cmd === 'git') {
       const r = spawnSync('git', args, {cwd: opts.cwd, env: gitEnv, encoding: 'utf8'});
@@ -95,6 +97,7 @@ describe('deployOnce', () => {
     alerts = [];
     behaviour = {tests: 0, health: 'healthy', busy: false};
     workerLog = '';
+    builtWith = [];
   });
   afterEach(() => fs.rmSync(root, {recursive: true, force: true}));
 
@@ -111,6 +114,7 @@ describe('deployOnce', () => {
     const i = (s: string) => calls.findIndex(c => c.includes(s));
     assert.ok(i('npm test') < i('merge -q --ff-only'), 'canlıya almadan önce test');
     assert.ok(calls.includes('docker compose up -d --build mcp'));
+    assert.deepEqual(builtWith, [sha], 'imaja canlıya alınan commit yazılır');
     assert.ok(calls.some(c => c.startsWith('launchctl kickstart -k gui/')));
     assert.match(alerts[0], /^deploy edildi: [0-9a-f]{8} "MCP ve işçi değişti" \(işçi, mcp\)/);
     assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'live/work/deploy/state.json'), 'utf8')).deployedSha, sha);

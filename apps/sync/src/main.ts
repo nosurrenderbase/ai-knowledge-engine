@@ -5,7 +5,7 @@ import {areaLabel} from '@ai-knowledge-engine/kb';
 import {loadAreaConfigs, type Config} from './config.ts';
 import {Git} from './git.ts';
 import {defaultClaude, readQueue, runJob} from './job.ts';
-import {DEFAULT_BUSY_FILE, whileBusy} from './busy.ts';
+import {DEFAULT_BUSY_FILE, DEFAULT_VERSION_FILE, whileBusy, writeVersionFile} from './busy.ts';
 import {KbIndexer} from './kb-index.ts';
 import {jsonLogger, makeAlerter, type Logger} from './log.ts';
 import {runWorkers, Worker} from './worker.ts';
@@ -18,6 +18,7 @@ import {runWorkers, Worker} from './worker.ts';
  */
 async function main(): Promise<void> {
   const configs = loadAreaConfigs(process.env);
+  if (process.argv[2] !== 'once') writeVersionFile(process.env.KBSYNC_VERSION_FILE || DEFAULT_VERSION_FILE);
   const base = configs[0];
   const alert = makeAlerter(jsonLogger, base.alertWebhookUrl);
   const now = () => new Date();

@@ -56,6 +56,8 @@ Bu repo'nun main'ine push edilen her commit bu makinede kendiliğinden canlıya 
 2. Canlı klon ileri sarılır (`--ff-only`); yalnız değişenin gerektirdiği yapılır: `apps/sync` → işçi yeniden başlar (süren Claude işi varsa iş bitince), `apps/mcp` → MCP, `apps/panel` → panel, `packages/*` → onu kullananlar, kilit dosyası → `npm ci`, `compose.yaml` → bütün servisler; dokümanlar ve `prompts/` hiçbir şeyi yeniden başlatmaz.
 3. Sağlık kontrolü (container `healthy`, işçi "başladı" logu); olmazsa önceki commit'e dönülür.
 
+Panelin genel bakış sayfasındaki **Sürümler** kartı canlı commit'i, her servisin (işçi, MCP, panel) gerçekte çalıştırdığı commit'i, işçinin şu an bir iş yürütüp yürütmediğini ve her bilgi tabanı alanının işlediği son kod commit'ini gösterir. Elle derleme yaparken commit'i imaja yazmak için: `GIT_SHA=$(git rev-parse HEAD) docker compose up -d --build`.
+
 Her adım `work/logs/deploy.log`'a, deploy/atlama/hata/geri alma `ALERT_WEBHOOK_URL`'e gider; canlıdaki commit `work/deploy/state.json`'da. **Sunucudaki klonda elle düzenleme yapılmaz**: commit edilmemiş değişiklik varsa deploy durur ve alarm verir. Elle bir tur: `deploy/run-deploy.sh`.
 
 Node.js 22.18+ gerekir; TypeScript derlenmeden, doğrudan çalıştırılır.

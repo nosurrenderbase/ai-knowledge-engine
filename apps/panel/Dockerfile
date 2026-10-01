@@ -22,6 +22,9 @@ COPY packages/search/src packages/search/src
 COPY apps/panel apps/panel
 RUN npm run build --workspace @ai-knowledge-engine/panel
 
+# Commit this image was built from (compose passes GIT_SHA; the deploy job sets it).
+ARG GIT_SHA=unknown
+ENV APP_VERSION=$GIT_SHA
 ENV NODE_ENV=production
 USER node
 EXPOSE 3100

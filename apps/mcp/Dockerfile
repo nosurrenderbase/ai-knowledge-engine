@@ -20,6 +20,9 @@ COPY packages/kb/src packages/kb/src
 COPY packages/search/src packages/search/src
 COPY apps/mcp/src apps/mcp/src
 
+# Commit this image was built from (compose passes GIT_SHA; the deploy job sets it).
+ARG GIT_SHA=unknown
+ENV APP_VERSION=$GIT_SHA
 USER node
 EXPOSE 8787
 CMD ["node", "apps/mcp/src/main.ts"]
