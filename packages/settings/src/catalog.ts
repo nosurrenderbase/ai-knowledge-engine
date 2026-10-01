@@ -23,6 +23,8 @@ export interface SettingDef {
   /** Validation for a new value (empty clears the key unless required). */
   pattern?: RegExp;
   required?: boolean;
+  /** What the code uses when the key is not set. */
+  fallback?: string;
 }
 
 export const FILES: Record<EnvFile, string> = {env: '.env', kbsync: 'deploy/kbsync.env'};
@@ -34,11 +36,11 @@ export const SETTINGS: SettingDef[] = [
   // Arama (Voyage)
   {key: 'VOYAGE_API_KEY', file: 'env', group: 'Arama', about: 'Voyage embedding API anahtarı (MongoDB Atlas)', secret: true, restart: ['mcp', 'panel', 'worker'], required: true},
   {key: 'VOYAGE_API_URL', file: 'env', group: 'Arama', about: 'Voyage uç noktası (ör. ai.mongodb.com)', secret: false, restart: ['mcp', 'panel', 'worker'], pattern: /^[\w.:/-]+$/},
-  {key: 'VOYAGE_MODEL', file: 'env', group: 'Arama', about: 'Embedding modeli (varsayılan voyage-4-large); değişirse indeks yeniden kurulur', secret: false, restart: ['mcp', 'panel', 'worker'], pattern: /^[\w.-]+$/},
+  {key: 'VOYAGE_MODEL', file: 'env', group: 'Arama', about: 'Embedding modeli (varsayılan voyage-4-large); değişirse indeks yeniden kurulur', secret: false, restart: ['mcp', 'panel', 'worker'], pattern: /^[\w.-]+$/, fallback: 'voyage-4-large'},
 
   // MCP
   {key: 'MCP_TOKEN', file: 'env', group: 'MCP', about: 'Eski ortak token; boşaltılırsa yalnız kişisel token\'lar çalışır', secret: true, restart: ['mcp']},
-  {key: 'USAGE_RETENTION_DAYS', file: 'env', group: 'MCP', about: 'Ayrıntılı kullanım kayıtlarının saklanacağı gün (varsayılan 90)', secret: false, restart: ['mcp'], pattern: INT},
+  {key: 'USAGE_RETENTION_DAYS', file: 'env', group: 'MCP', about: 'Ayrıntılı kullanım kayıtlarının saklanacağı gün (varsayılan 90)', secret: false, restart: ['mcp'], pattern: INT, fallback: '90'},
   {key: 'MONGO_RO_URI', file: 'env', group: 'Oyun veritabanı', about: 'Salt okunur MongoDB bağlantısı (db_* araçları)', secret: true, restart: ['mcp'], pattern: /^mongodb(\+srv)?:\/\/\S+$/},
   {key: 'MONGO_RO_DB', file: 'env', group: 'Oyun veritabanı', about: 'Veritabanı adı (URI\'de yoksa)', secret: false, restart: ['mcp'], pattern: /^[\w-]+$/},
 
@@ -49,13 +51,13 @@ export const SETTINGS: SettingDef[] = [
   // İşçi
   {key: 'CLAUDE_CODE_OAUTH_TOKEN', file: 'kbsync', group: 'İşçi', about: 'Botun Claude abonelik token\'ı (claude setup-token)', secret: true, restart: ['worker'], required: true},
   {key: 'ALERT_WEBHOOK_URL', file: 'kbsync', group: 'İşçi', about: 'Alarmların gideceği adres (Slack incoming webhook); işçi ve deploy', secret: true, restart: ['worker'], pattern: HTTPS},
-  {key: 'CLAUDE_MODEL', file: 'kbsync', group: 'İşçi', about: 'Güncelleme işlerinde kullanılan model (varsayılan opus)', secret: false, restart: ['worker'], pattern: /^[\w.-]+$/},
-  {key: 'POLL_INTERVAL_MS', file: 'kbsync', group: 'İşçi', about: 'Kod repolarını yoklama aralığı, ms (varsayılan 120000)', secret: false, restart: ['worker'], pattern: INT},
-  {key: 'BATCH_THRESHOLD', file: 'kbsync', group: 'İşçi', about: 'Bundan fazla commit birikirse tek işte birleştir (varsayılan 3)', secret: false, restart: ['worker'], pattern: INT},
-  {key: 'MAX_ATTEMPTS', file: 'kbsync', group: 'İşçi', about: 'Bir iş kaç kez başarısız olunca sıra dursun (varsayılan 3)', secret: false, restart: ['worker'], pattern: INT},
-  {key: 'CLAUDE_MAX_TURNS', file: 'kbsync', group: 'İşçi', about: 'Tek Claude çağrısının en fazla tur sayısı (varsayılan 80)', secret: false, restart: ['worker'], pattern: INT},
-  {key: 'CLAUDE_TIMEOUT_MS', file: 'kbsync', group: 'İşçi', about: 'Tek Claude çağrısının üst süresi, ms (varsayılan 3600000)', secret: false, restart: ['worker'], pattern: INT},
-  {key: 'GROUP_MAX_DOCS', file: 'kbsync', group: 'İşçi', about: 'Etki listesi bundan büyükse çağrı gruplara bölünür (varsayılan 40)', secret: false, restart: ['worker'], pattern: INT},
+  {key: 'CLAUDE_MODEL', file: 'kbsync', group: 'İşçi', about: 'Güncelleme işlerinde kullanılan model (varsayılan opus)', secret: false, restart: ['worker'], pattern: /^[\w.-]+$/, fallback: 'opus'},
+  {key: 'POLL_INTERVAL_MS', file: 'kbsync', group: 'İşçi', about: 'Kod repolarını yoklama aralığı, ms (varsayılan 120000)', secret: false, restart: ['worker'], pattern: INT, fallback: '120000'},
+  {key: 'BATCH_THRESHOLD', file: 'kbsync', group: 'İşçi', about: 'Bundan fazla commit birikirse tek işte birleştir (varsayılan 3)', secret: false, restart: ['worker'], pattern: INT, fallback: '3'},
+  {key: 'MAX_ATTEMPTS', file: 'kbsync', group: 'İşçi', about: 'Bir iş kaç kez başarısız olunca sıra dursun (varsayılan 3)', secret: false, restart: ['worker'], pattern: INT, fallback: '3'},
+  {key: 'CLAUDE_MAX_TURNS', file: 'kbsync', group: 'İşçi', about: 'Tek Claude çağrısının en fazla tur sayısı (varsayılan 80)', secret: false, restart: ['worker'], pattern: INT, fallback: '80'},
+  {key: 'CLAUDE_TIMEOUT_MS', file: 'kbsync', group: 'İşçi', about: 'Tek Claude çağrısının üst süresi, ms (varsayılan 3600000)', secret: false, restart: ['worker'], pattern: INT, fallback: '3600000'},
+  {key: 'GROUP_MAX_DOCS', file: 'kbsync', group: 'İşçi', about: 'Etki listesi bundan büyükse çağrı gruplara bölünür (varsayılan 40)', secret: false, restart: ['worker'], pattern: INT, fallback: '40'},
   {key: 'GIT_AUTHOR_NAME', file: 'kbsync', group: 'İşçi', about: 'Bilgi tabanı commit\'lerinin yazarı', secret: false, restart: ['worker'], required: true},
   {key: 'GIT_AUTHOR_EMAIL', file: 'kbsync', group: 'İşçi', about: 'Bilgi tabanı commit\'lerinin e-postası', secret: false, restart: ['worker'], required: true, pattern: /^\S+@\S+$/},
 

@@ -19,6 +19,8 @@ export interface SettingRow {
   required: boolean;
   restart: Target[];
   value: string | null;
+  /** Used by the code when the key is not set. */
+  fallback: string | null;
   pending: boolean;
 }
 
@@ -64,6 +66,7 @@ export async function readSettings(env = process.env): Promise<SettingsView> {
       required: Boolean(s.required),
       restart: s.restart,
       value: displayValue(s, values[s.file][s.key]),
+      fallback: s.fallback ?? null,
       pending: pendingKeys.has(s.key),
     })),
     changes: changes.map(c => ({

@@ -161,7 +161,7 @@ function SettingsTab({v}: {v: SettingsView}) {
                       {r.about}
                     </div>
                     <div className="kb-mono" style={{fontSize: 12, marginTop: 4, wordBreak: 'break-all', color: r.value ? undefined : '#8e8e93'}}>
-                      {r.value ?? 'tanımlı değil'}
+                      {r.value ?? (r.fallback ? `varsayılan: ${r.fallback}` : 'tanımlı değil')}
                     </div>
                   </div>
                   {r.readOnly ? (
