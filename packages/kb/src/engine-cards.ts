@@ -41,6 +41,27 @@ const IDENTITY: {path: string; field: string; title: string}[] = [
   {path: 'playStyles', field: 'Styles', title: 'Oyun stilleri (PlayStyles)'},
 ];
 
+/** Turkish names of the stats, for titles and search aliases (unknown stats fall back to their field name). */
+const STAT_NAMES: Record<string, string> = {
+  crossing: 'Orta', finishing: 'Bitiricilik', headingAccuracy: 'Kafa isabeti', shortPassing: 'Kısa pas', volleys: 'Vole',
+  dribbling: 'Dribbling (top sürme)', curve: 'Falso', freeKickAccuracy: 'Frikik isabeti', longPassing: 'Uzun pas', ballControl: 'Top kontrolü',
+  acceleration: 'Hızlanma (ivme)', sprintSpeed: 'Sprint hızı', agility: 'Çeviklik', reactions: 'Reaksiyon', balance: 'Denge',
+  shotPower: 'Şut gücü', jumping: 'Sıçrama', stamina: 'Dayanıklılık (stamina)', strength: 'Güç (fizik)', longShots: 'Uzaktan şut',
+  aggression: 'Agresiflik (sertlik)', interceptions: 'Pas arası', attackingPosition: 'Hücumda pozisyon alma', vision: 'Vizyon (oyun görüşü)',
+  penalties: 'Penaltı', composure: 'Soğukkanlılık', defensiveAwareness: 'Savunma farkındalığı', standingTackle: 'Top kapma (ayakta müdahale)',
+  slidingTackle: 'Kayarak müdahale', diving: 'Uzanma (kaleci)', handling: 'Topu tutma (kaleci)', kicking: 'Vuruş ve degaj (kaleci)',
+  positioning: 'Pozisyon alma (kaleci)', reflexes: 'Refleks (kaleci)', height: 'Boy', preferredFoot: 'Tercih edilen ayak',
+  overall: 'Overall (OVR)', playStyles: 'Oyun stilleri (PlayStyles)',
+};
+
+function metricMeta(m: Metric): {title: string; aliases: string[]} {
+  const key = m.path.split('.').pop()!;
+  const tr = STAT_NAMES[key] ?? key;
+  const short = tr.replace(/\s*\(.*\)$/, '');
+  const aliases = [...new Set([key, tr, short, `${short} ne işe yarar`, `${short} maçı ne kadar etkiliyor`, `${key} etkisi`])];
+  return {title: `${tr}: maç motorunda etkisi`, aliases};
+}
+
 interface Metric {
   path: string;
   slug: string;
@@ -199,7 +220,15 @@ export function generateEngineDocs(opts: EngineDocsOptions): EngineDocsResult {
     const usage = isUsed(model, m.field) ? 'kullanılıyor' : 'kullanılmıyor';
     writeCard(
       path.join(opts.areaDir, rel),
-      {type: 'metric', name: JSON.stringify(m.path), field: m.field ?? '—', usage, ...base},
+      {
+        type: 'metric',
+        title: JSON.stringify(metricMeta(m).title),
+        name: JSON.stringify(m.path),
+        field: m.field ?? '—',
+        usage,
+        aliases: JSON.stringify(metricMeta(m).aliases),
+        ...base,
+      },
       renderMetric(model, m),
       '## Ne işe yarar\n\n_TODO: 2-4 cümle, iş diliyle: bu stat maçta neyi değiştirir, ne kadar etkili, hangi pozisyonda önemli (AI doldurur)._\n',
     );
