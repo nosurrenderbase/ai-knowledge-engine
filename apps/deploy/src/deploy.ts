@@ -59,6 +59,19 @@ export type DeployResult = 'idle' | 'skipped' | 'test-failed' | 'deployed' | 'ro
 const short = (sha: string) => sha.slice(0, 8);
 const tail = (s: string, n = 1500) => (s.length > n ? `…${s.slice(-n)}` : s);
 
+/** The useful part of a failed command: failing test names, assertion diffs, errors; else the end. */
+export function failureSummary(out: string, max = 1200): string {
+  const lines = out.split('\n');
+  const picked: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (/✖|^not ok|error TS\d+|AssertionError|Error:/.test(lines[i])) {
+      for (const l of lines.slice(i, i + 4)) if (l.trim() && !picked.includes(l)) picked.push(l);
+    }
+  }
+  const text = (picked.length ? picked.map(l => l.trim()).join('\n') : out).trim();
+  return text.length > max ? (picked.length ? `${text.slice(0, max)}…` : tail(text, max)) : text;
+}
+
 export async function deployOnce(d: DeployDeps): Promise<DeployResult> {
   const t = {...TIMEOUTS, ...d.timeouts};
   const state: State = fs.existsSync(d.stateFile) ? JSON.parse(fs.readFileSync(d.stateFile, 'utf8')) : {};
@@ -69,7 +82,7 @@ export async function deployOnce(d: DeployDeps): Promise<DeployResult> {
   const git = (...args: string[]) => d.exec('git', ['-C', d.repo, ...args]);
   const must = async (what: string, p: Promise<ExecResult>) => {
     const r = await p;
-    if (r.code !== 0) throw new Error(`${what} başarısız (çıkış ${r.code}): ${tail(r.out, 600)}`);
+    if (r.code !== 0) throw new Error(`${what} başarısız (çıkış ${r.code}):\n${failureSummary(r.out)}`);
     return r.out.trim();
   };
 

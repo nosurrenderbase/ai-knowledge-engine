@@ -4,7 +4,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import {afterEach, beforeEach, describe, it} from 'node:test';
-import {deployOnce, type DeployDeps, type Exec} from '../src/deploy.ts';
+import {deployOnce, failureSummary, type DeployDeps, type Exec} from '../src/deploy.ts';
 import {describePlan, planDeploy} from '../src/plan.ts';
 
 process.env.GIT_CONFIG_GLOBAL = '/dev/null';
@@ -25,6 +25,14 @@ describe('planDeploy', () => {
     assert.ok(planDeploy(['compose.yaml']).composeAll);
     assert.match(planDeploy(['deploy/dev.nosurrender.kbsync.plist']).manual[0], /install-launchd/);
     assert.equal(describePlan(planDeploy(['prompts/backend/UPDATE-PROMPT.md', 'apps/deploy/src/deploy.ts'])), 'yeniden başlatma gerekmiyor');
+  });
+});
+
+describe('failureSummary', () => {
+  it('keeps the failing test and its diff, not the passing noise around it', () => {
+    const out = ['  ✔ a geçti', '  ✔ b geçti', '  ✖ health needs no token (2ms)', '  + actual - expected', '  +   version: null', '', '  ✔ c geçti'].join('\n');
+    assert.equal(failureSummary(out), '✖ health needs no token (2ms)\n+ actual - expected\n+   version: null');
+    assert.equal(failureSummary('npm ERR! kurulum bozuk'), 'npm ERR! kurulum bozuk');
   });
 });
 
