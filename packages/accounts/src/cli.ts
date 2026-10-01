@@ -101,7 +101,7 @@ try {
       break;
     }
     case 'list': {
-      console.log('id\tad\te-posta\taktif token\tson kullanım\t30 günde çağrı\tdurum');
+      console.log('id\tad\te-posta\taktif token\tson kullanım\t30 günde çağrı\tdurum\tdb');
       for (const u of await listUsers(db)) {
         console.log(`${u.id}\t${u.name}\t${u.email ?? '-'}\t${u.activeTokens}\t${fmt(u.lastUsedAt)}\t${u.calls30d}\t${u.disabledAt ? 'devre dışı' : 'etkin'}\t${u.dbAccess ? 'db' : '-'}`);
       }
