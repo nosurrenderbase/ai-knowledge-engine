@@ -1,6 +1,6 @@
 # MCP sunucusu
 
-Efsane Başkan bilgi tabanını Claude'a açan MCP sunucusu (Streamable HTTP, stateless). Veriyi yalnız Redis'ten okur: arama indeksi ve dokümanların tam metni işçinin (`apps/sync`) indeks senkronuyla aynı KB commit'indedir.
+Efsane Başkan bilgi tabanını Claude'a açan MCP sunucusu (Streamable HTTP, stateless). İki alanı birlikte sunar: `backend/` ve `frontend/` (`SEARCH_AREAS`, varsayılan `backend,frontend`). Yollar alan önekiyle döner (`frontend/flows/pvp/rakip-bul.md`); öneksiz yol backend'indir. Araçlar isteğe bağlı `area` alır; indeksi olmayan alan atlanır. Veriyi yalnız Redis'ten okur: arama indeksi ve dokümanların tam metni işçinin (`apps/sync`) indeks senkronuyla aynı KB commit'indedir.
 
 ## Araçlar
 
