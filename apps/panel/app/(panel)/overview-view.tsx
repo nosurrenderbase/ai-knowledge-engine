@@ -6,7 +6,7 @@ import {DailyBars} from '@/components/daily-bars';
 
 const fmt = (iso?: string) => (iso ? new Date(iso).toLocaleString('tr-TR', {timeZone: 'Europe/Istanbul'}) : '-');
 
-export function OverviewView({o, days, meta}: {o: Overview; days: DailyTotal[]; meta: Record<string, string>}) {
+export function OverviewView({o, days, indexes}: {o: Overview; days: DailyTotal[]; indexes: Record<string, string>[]}) {
   const stats: [string, number][] = [
     ['Etkin kullanıcı', o.users],
     ['Son 7 günde kullanan', o.activeUsers7d],
@@ -30,17 +30,21 @@ export function OverviewView({o, days, meta}: {o: Overview; days: DailyTotal[]; 
         </Card>
       </Col>
       <Col xs={24} xl={8}>
-        <Card title="Arama indeksi">
-          <Descriptions
-            column={1}
-            size="small"
-            items={[
-              {key: 'c', label: 'Bilgi tabanı commit', children: meta.commit?.slice(0, 8) ?? '-'},
-              {key: 'p', label: 'Parça', children: meta.chunks ?? '-'},
-              {key: 'm', label: 'Model', children: meta.model ?? '-'},
-              {key: 'u', label: 'Güncellendi', children: fmt(meta.updated_at)},
-            ]}
-          />
+        <Card title="Arama indeksleri">
+          {indexes.map(meta => (
+            <Descriptions
+              key={meta.area}
+              title={meta.area}
+              column={1}
+              size="small"
+              style={{marginBottom: 12}}
+              items={[
+                {key: 'c', label: 'Bilgi tabanı commit', children: meta.commit?.slice(0, 8) ?? 'henüz yok'},
+                {key: 'p', label: 'Parça', children: meta.chunks ?? '-'},
+                {key: 'u', label: 'Güncellendi', children: fmt(meta.updated_at)},
+              ]}
+            />
+          ))}
         </Card>
       </Col>
     </Row>

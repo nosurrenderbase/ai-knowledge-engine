@@ -44,17 +44,27 @@ function firstString(args: string): string | null {
   return m ? m[2] : null;
 }
 
-export function graphqlOperations(src: string): string[] {
-  const names: string[] = [];
+export interface GraphqlOperation {
+  name: string;
+  kind: 'query' | 'mutation' | 'subscription';
+}
+
+/** Operations a resolver declares, with their kind. */
+export function graphqlOperationDetails(src: string): GraphqlOperation[] {
+  const ops: GraphqlOperation[] = [];
   for (const m of src.matchAll(/@(Query|Mutation|Subscription)\s*\(/g)) {
     const open = m.index + m[0].length - 1;
     const end = closeParen(src, open);
     const args = src.slice(open, end);
     const named = /\bname\s*:\s*(['"`])(\w+)\1/.exec(args);
     const name = named ? named[2] : decoratedMethod(src, end);
-    if (name) names.push(name);
+    if (name) ops.push({name, kind: m[1].toLowerCase() as GraphqlOperation['kind']});
   }
-  return names;
+  return ops;
+}
+
+export function graphqlOperations(src: string): string[] {
+  return graphqlOperationDetails(src).map(o => o.name);
 }
 
 export function restRoutes(src: string): string[] {

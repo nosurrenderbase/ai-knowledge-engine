@@ -75,16 +75,19 @@ async function purge(): Promise<void> {
 setInterval(purge, 60 * 60_000).unref();
 setTimeout(purge, 60_000).unref();
 
+// One shared embedder and query cache: a question searched in both areas is embedded once.
+const voyage = new Voyage(cfg.voyage);
+const queryCache = new EmbeddingCache(null, cfg.target.model, 'query');
+const areaNames = (process.env.SEARCH_AREAS ?? 'backend,frontend').split(',').map(a => a.trim()).filter(Boolean);
+const areas = new Map(
+  areaNames.map(area => {
+    const target = loadSearchConfig(process.env, area).target;
+    return [area, {store: new KbStore(redis, target), search: {client: redis, voyage, spec: target, model: target.model, queryCache}}] as const;
+  }),
+);
+
 const services = {
-  store: new KbStore(redis, cfg.target),
-  search: {
-    client: redis,
-    voyage: new Voyage(cfg.voyage),
-    spec: cfg.target,
-    model: cfg.target.model,
-    // Query embeddings in memory: the same question twice costs one call.
-    queryCache: new EmbeddingCache(null, cfg.target.model, 'query'),
-  },
+  areas,
   usage: (e: Parameters<typeof recordUsage>[1]) => recordUsage(db, {...e, tokenId: e.tokenId || null}),
   log,
 };
@@ -96,7 +99,7 @@ const server = createHttpServer(services, {
   ready: () => redis.isReady && dbReady,
   authenticate: async token => (isShared(token) ? legacy : verifyToken(db, token)),
 });
-server.listen(port, host, () => log('info', 'mcp dinliyor', {url: `http://${host}:${port}/mcp`, index: cfg.target.name, sharedToken: Boolean(sharedToken)}));
+server.listen(port, host, () => log('info', 'mcp dinliyor', {url: `http://${host}:${port}/mcp`, areas: areaNames, sharedToken: Boolean(sharedToken)}));
 
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sig, () => {

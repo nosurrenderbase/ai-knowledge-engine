@@ -10,8 +10,10 @@ export interface Config {
   codeRepo: string;
   codeRemote: string;
   codeBranch: string;
-  /** Knowledge base folder this worker keeps in sync ("backend"). */
+  /** Knowledge base folder this worker keeps in sync ("backend" or "frontend"). */
   area: string;
+  /** Frontend only: the backend code clone, for which API fields exist. */
+  backendRepo?: string;
   pollIntervalMs: number;
   batchThreshold: number;
   maxAttempts: number;
@@ -77,4 +79,25 @@ export function loadConfig(env: Env): Config {
     alertWebhookUrl: env.ALERT_WEBHOOK_URL || undefined,
     dryRun: env.DRY_RUN === '1' || env.DRY_RUN === 'true',
   };
+}
+
+/**
+ * One config per knowledge base area: the backend (CODE_REPO) always, the app
+ * (FRONTEND_REPO) when set. They share the knowledge base clone and settings.
+ */
+export function loadAreaConfigs(env: Env): Config[] {
+  const backend = loadConfig(env);
+  const repo = env.FRONTEND_REPO?.trim();
+  if (!repo) return [backend];
+  return [
+    backend,
+    {
+      ...backend,
+      area: 'frontend',
+      codeRepo: path.resolve(repo),
+      codeRemote: env.FRONTEND_REMOTE ?? 'origin',
+      codeBranch: env.FRONTEND_BRANCH ?? 'main',
+      backendRepo: backend.codeRepo,
+    },
+  ];
 }

@@ -1,73 +1,95 @@
 import {setTimeout as delay} from 'node:timers/promises';
 import {createClient} from 'redis';
 import {loadSearchConfig, searchConfigured, Voyage} from '@ai-knowledge-engine/search';
-import {loadConfig} from './config.ts';
+import {loadAreaConfigs, type Config} from './config.ts';
 import {Git} from './git.ts';
-import {defaultClaude, readQueue, runJob, type JobDeps} from './job.ts';
+import {defaultClaude, readQueue, runJob} from './job.ts';
 import {KbIndexer} from './kb-index.ts';
-import {jsonLogger, makeAlerter} from './log.ts';
-import {Worker} from './worker.ts';
+import {jsonLogger, makeAlerter, type Logger} from './log.ts';
+import {runWorkers, Worker} from './worker.ts';
 
 /**
- * kbsync            → runs forever: poll, process the queue one job at a time
- * kbsync once       → processes the queue once and exits (with DRY_RUN=1: commits locally, no push)
+ * kbsync            → runs forever: poll, process each area's queue one job at a time
+ * kbsync once       → processes the queues once and exits (with DRY_RUN=1: commits locally, no push)
+ *
+ * Areas: backend (CODE_REPO) always, frontend (FRONTEND_REPO) when set.
  */
 async function main(): Promise<void> {
-  const cfg = loadConfig(process.env);
-  const log = jsonLogger;
-  const alert = makeAlerter(log, cfg.alertWebhookUrl);
+  const configs = loadAreaConfigs(process.env);
+  const base = configs[0];
+  const alert = makeAlerter(jsonLogger, base.alertWebhookUrl);
   const now = () => new Date();
-  const jobDeps: JobDeps = {cfg, log, now, claude: defaultClaude(cfg)};
-  const code = new Git(cfg.codeRepo);
 
   // Search index: only when Redis and Voyage are configured, never in dry runs
   // (indexing resets the knowledge base clone, which would drop the local commit).
-  let indexer: KbIndexer | null = null;
-  let closeRedis = async () => {};
-  if (!cfg.dryRun && searchConfigured(process.env)) {
-    const search = loadSearchConfig(process.env, cfg.area);
-    const client = createClient({url: search.redisUrl, password: search.redisPassword});
-    client.on('error', e => log('warn', 'redis bağlantı hatası', {error: (e as Error).message}));
+  const indexing = !base.dryRun && searchConfigured(process.env);
+  let redis: ReturnType<typeof createClient> | null = null;
+  if (indexing) {
+    const search = loadSearchConfig(process.env);
+    redis = createClient({url: search.redisUrl, password: search.redisPassword});
+    redis.on('error', e => jsonLogger('warn', 'redis bağlantı hatası', {error: (e as Error).message}));
     // Not awaited: after a reboot Docker (and Redis) may come up after this worker.
     // Syncing starts right away; indexing waits until the client is ready.
-    client.connect().catch(e => log('warn', 'redis bağlanamadı', {error: (e as Error).message}));
-    closeRedis = async () => void (await client.quit());
-    indexer = new KbIndexer({cfg, client, embedder: new Voyage(search.voyage), target: search.target, cacheDir: search.cacheDir, log, alert});
+    redis.connect().catch(e => jsonLogger('warn', 'redis bağlanamadı', {error: (e as Error).message}));
   } else {
-    log('info', 'arama indeksi kapalı', {reason: cfg.dryRun ? 'DRY_RUN' : 'VOYAGE_API_KEY / VOYAGE_API_URL / REDIS_PASSWORD eksik'});
+    jsonLogger('info', 'arama indeksi kapalı', {reason: base.dryRun ? 'DRY_RUN' : 'VOYAGE_API_KEY / VOYAGE_API_URL / REDIS_PASSWORD eksik'});
   }
 
-  const worker = new Worker({
-    cfg,
-    log,
-    alert,
-    now,
-    remoteHead: () => code.remoteHead(cfg.codeRemote, cfg.codeBranch),
-    readQueue: () => readQueue(cfg),
-    runJob: job => runJob(job, jobDeps),
-    afterTick: async () => indexer?.reconcile(),
-  });
+  const workerFor = (cfg: Config): Worker => {
+    const log: Logger = (level, msg, fields) => jsonLogger(level, msg, {area: cfg.area, ...fields});
+    const code = new Git(cfg.codeRepo);
+    let indexer: KbIndexer | null = null;
+    if (redis) {
+      const search = loadSearchConfig(process.env, cfg.area);
+      indexer = new KbIndexer({
+        cfg,
+        client: redis,
+        embedder: new Voyage(search.voyage),
+        target: search.target,
+        cacheDir: search.cacheDir,
+        label: cfg.area === 'backend' ? undefined : cfg.area[0].toUpperCase() + cfg.area.slice(1),
+        log,
+        alert,
+      });
+    }
+    return new Worker({
+      cfg,
+      log,
+      alert,
+      now,
+      remoteHead: () => code.remoteHead(cfg.codeRemote, cfg.codeBranch),
+      readQueue: () => readQueue(cfg),
+      runJob: job => runJob(job, {cfg, log, now, claude: defaultClaude(cfg)}),
+      afterTick: async () => indexer?.reconcile(),
+    });
+  };
+  const workers = configs.map(workerFor);
+  const closeRedis = async () => void (await redis?.quit());
 
   if (process.argv[2] === 'once') {
-    const result = await worker.tick();
-    const index = await indexer?.reconcile();
-    log('info', 'tek tur bitti', {result, index});
+    let ok = true;
+    for (const w of workers) {
+      const result = await w.tick();
+      await w.afterTick();
+      jsonLogger('info', 'tek tur bitti', {result});
+      ok &&= result.kind === 'idle' || result.kind === 'drained';
+    }
     await closeRedis();
-    process.exitCode = result.kind === 'idle' || result.kind === 'drained' ? 0 : 1;
+    process.exitCode = ok ? 0 : 1;
     return;
   }
 
   const controller = new AbortController();
   for (const sig of ['SIGINT', 'SIGTERM'] as const) {
     process.on(sig, () => {
-      log('info', 'kapanıyor; süren iş bitince çıkılacak', {signal: sig});
+      jsonLogger('info', 'kapanıyor; süren iş bitince çıkılacak', {signal: sig});
       controller.abort();
     });
   }
-  log('info', 'kbsync başladı', {area: cfg.area, pollIntervalMs: cfg.pollIntervalMs, dryRun: cfg.dryRun});
-  await worker.run(controller.signal, async (ms, signal) => {
+  jsonLogger('info', 'kbsync başladı', {areas: configs.map(c => c.area), pollIntervalMs: base.pollIntervalMs, dryRun: base.dryRun});
+  await runWorkers(workers, controller.signal, async (ms, signal) => {
     await delay(ms, undefined, {signal}).catch(() => undefined);
-  });
+  }, now);
   await closeRedis();
 }
 

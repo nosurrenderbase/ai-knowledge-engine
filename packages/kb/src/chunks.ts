@@ -108,12 +108,22 @@ function walk(dir: string): string[] {
 }
 
 const AREA: Record<string, string> = {
-  flows: 'Akış', modules: 'Modül', usecases: 'Use case kartı', genel: 'Genel',
+  flows: 'Akış', modules: 'Modül', usecases: 'Use case kartı', genel: 'Genel', api: 'API işlemi', ekranlar: 'Ekran',
 };
 
+/** Folders of an area that hold documents (everything else is process files). */
+export const DOC_DIRS = ['genel', 'flows', 'modules', 'usecases', 'api', 'ekranlar'];
+
+export interface ChunkOptions {
+  /** Prefix of every breadcrumb, e.g. "Frontend". Omitted for the backend so its hashes stay as they were. */
+  label?: string;
+}
+
+const stripGenMarkers = (t: string) => t.replace(/^<!-- gen:(start|end) -->\n?/gm, '').trim();
+
 /** Builds the chunks of every document of an area (genel, flows, modules, usecases). */
-export function buildChunks(areaDir: string): Chunk[] {
-  const files = ['genel', 'flows', 'modules', 'usecases'].flatMap(d => walk(path.join(areaDir, d)));
+export function buildChunks(areaDir: string, opts: ChunkOptions = {}): Chunk[] {
+  const files = DOC_DIRS.flatMap(d => walk(path.join(areaDir, d)));
   const out: Chunk[] = [];
 
   for (const file of files) {
@@ -133,11 +143,11 @@ export function buildChunks(areaDir: string): Chunk[] {
     }
 
     for (const sec of secs) {
-      const pieces = splitLong(stripMermaid(sec.text));
+      const pieces = splitLong(stripGenMarkers(stripMermaid(sec.text)));
       pieces.forEach((piece, i) => {
         if (!piece) return;
         const headingPath = sec.headings.join(' › ');
-        const crumb = [`${area}${moduleName}`, title, headingPath].filter(Boolean).join(' › ');
+        const crumb = [`${opts.label ? `${opts.label} · ` : ''}${area}${moduleName}`, title, headingPath].filter(Boolean).join(' › ');
         const embed = [crumb, aliases.length ? `Eş anlamlılar: ${aliases.join(', ')}` : '', piece]
           .filter(Boolean).join('\n');
         const id = `${rel}#${headingPath || 'giriş'}${pieces.length > 1 ? `#${i + 1}` : ''}`;

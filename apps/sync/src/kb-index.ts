@@ -16,6 +16,8 @@ export interface KbIndexerDeps {
   embedder: Embedder;
   target: IndexTarget;
   cacheDir: string | null;
+  /** Breadcrumb prefix of the area's chunks ("Frontend"). */
+  label?: string;
   log: Logger;
   alert: Alerter;
   /** Consecutive failures before an alert. */
@@ -56,8 +58,9 @@ export class KbIndexer {
         areaDir: path.join(cfg.kbRepo, cfg.area),
         commit: await kb.revParse('HEAD'),
         cacheDir: this.deps.cacheDir,
+        label: this.deps.label,
       });
-      log('info', 'arama indeksi güncellendi', {commit: head.slice(0, 8), ...res});
+      log('info', 'arama indeksi güncellendi', {area: cfg.area, commit: head.slice(0, 8), ...res});
       this.failures = 0;
       return 'indexed';
     } catch (e) {

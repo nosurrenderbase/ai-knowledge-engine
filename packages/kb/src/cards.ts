@@ -330,13 +330,17 @@ function renderCard(cls: ClassDeclaration, moduleName: string, rel: Rel, moduleF
   return out.join('\n');
 }
 
-function writeCard(target: string, meta: Record<string, string>, generated: string) {
+/**
+ * Writes a generated document: frontmatter + the written part (kept from the
+ * existing file, or a TODO placeholder) + the generated block.
+ */
+export function writeCard(target: string, meta: Record<string, string>, generated: string, placeholder = MANUAL_PLACEHOLDER) {
   const frontmatter = [
     '---',
     ...Object.entries(meta).map(([k, v]) => `${k}: ${v}`),
     '---',
   ].join('\n');
-  let manual = MANUAL_PLACEHOLDER;
+  let manual = placeholder;
   if (fs.existsSync(target)) {
     const prev = fs.readFileSync(target, 'utf8');
     const s = prev.indexOf(GEN_START);

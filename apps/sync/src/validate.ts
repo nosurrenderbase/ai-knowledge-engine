@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {buildChunks, FrontmatterError, genBlock, loadDocs, manualPart, parseDoc, stringList} from '@ai-knowledge-engine/kb';
-import {graphqlOperations, restRoutes} from './endpoints.ts';
+import {graphqlOperations, restRoutes} from '@ai-knowledge-engine/kb';
 import type {Git} from './git.ts';
 import {cardPath, isUsecaseFile, moduleOf} from './impact.ts';
 import {findSecrets} from './secrets.ts';
@@ -14,6 +14,12 @@ export const STATUSES = [
   'bayrakla kapalı',
   'kaldırıldı',
 ];
+
+/** Status values of the app's documents (see prompts/frontend/PROMPT.md). */
+export const FRONTEND_STATUSES = ['canlıda', 'kısmen canlıda', 'bayrakla kapalı', 'kodda var, erişilmiyor', 'kaldırıldı'];
+
+/** Folders whose documents only a generator creates (agents fill their written part). */
+const GENERATED_DIRS = ['usecases/', 'api/', 'ekranlar/'];
 
 /** Area-root documents the worker maintains itself; the agent must not touch them. */
 const META_DOCS = new Set(['README.md']);
@@ -128,11 +134,12 @@ export async function validate(input: ValidationInput): Promise<ValidationResult
   const regenerated = new Set(input.regeneratedCards);
   let editedDocs = 0;
 
+  const statuses = area === 'frontend' ? FRONTEND_STATUSES : STATUSES;
   for (const file of changed) {
     const rel = file.slice(area.length + 1);
     const text = fs.readFileSync(path.join(kbRoot, file), 'utf8');
     const before = await kbGit.show('HEAD', file);
-    const isCard = rel.startsWith('usecases/');
+    const isCard = input.genBlocks.has(file) || GENERATED_DIRS.some(d => rel.startsWith(d));
 
     let meta: Record<string, unknown> = {};
     try {
@@ -141,8 +148,8 @@ export async function validate(input: ValidationInput): Promise<ValidationResult
       if (e instanceof FrontmatterError) retryable.push(`${rel}: frontmatter geçerli YAML değil (${e.message})`);
       else throw e;
     }
-    if (meta.status !== undefined && !STATUSES.includes(String(meta.status))) {
-      retryable.push(`${rel}: status "${String(meta.status)}" izinli değil (${STATUSES.join(' | ')})`);
+    if (meta.status !== undefined && !statuses.includes(String(meta.status))) {
+      retryable.push(`${rel}: status "${String(meta.status)}" izinli değil (${statuses.join(' | ')})`);
     }
     if (meta.aliases !== undefined && !Array.isArray(meta.aliases)) retryable.push(`${rel}: aliases bir liste olmalı`);
 
@@ -156,8 +163,11 @@ export async function validate(input: ValidationInput): Promise<ValidationResult
         if (!codeFiles.has(src)) retryable.push(`${rel}: sources içindeki ${src} kodda yok`);
       }
     }
-    for (const r of stringList(meta.related)) {
-      if (!fs.existsSync(path.join(areaDir, r))) retryable.push(`${rel}: related içindeki ${r} yok`);
+    // related, api and backend lists are relative to the area folder (backend: "../backend/…").
+    for (const key of ['related', 'api', 'backend'] as const) {
+      for (const r of stringList(meta[key])) {
+        if (!fs.existsSync(path.join(areaDir, r))) retryable.push(`${rel}: ${key} içindeki ${r} yok`);
+      }
     }
     if (text.includes('_TODO:')) retryable.push(`${rel}: _TODO: kalmış`);
 

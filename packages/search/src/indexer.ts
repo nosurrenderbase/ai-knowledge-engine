@@ -6,7 +6,7 @@
 import {createHash} from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import {buildChunks, listMarkdown, parseDoc, type Chunk} from '@ai-knowledge-engine/kb';
+import {buildChunks, DOC_DIRS, listMarkdown, parseDoc, type Chunk} from '@ai-knowledge-engine/kb';
 import {EmbeddingCache} from './embedding-cache.ts';
 import {dropIndex, ensureIndex, upsertChunks, type IndexSpec, type RedisClient} from './search-index.ts';
 import type {Embedder} from './voyage.ts';
@@ -27,8 +27,6 @@ export const docHashesKey = (spec: IndexSpec) => `${spec.name}:dochashes`;
  */
 export const INDEX_SCHEMA = '2';
 
-/** Folders of an area that hold documents (the rest is process files). */
-const DOC_DIRS = ['genel/', 'flows/', 'modules/', 'usecases/'];
 
 export interface SyncOptions {
   client: RedisClient;
@@ -40,6 +38,8 @@ export interface SyncOptions {
   commit: string;
   /** Embedding cache directory; null disables the disk cache. */
   cacheDir: string | null;
+  /** Breadcrumb prefix of the area's chunks ("Frontend"); none for the backend. */
+  label?: string;
   now?: () => Date;
 }
 
@@ -77,7 +77,7 @@ export async function syncIndex(opts: SyncOptions): Promise<SyncResult> {
   if (rebuilt) await wipe(client, target);
   await ensureIndex(client, target);
 
-  const chunks = buildChunks(areaDir);
+  const chunks = buildChunks(areaDir, {label: opts.label});
   const indexed = (await client.hGetAll(hashesKey(target))) as Record<string, string>;
   const current = new Set(chunks.map(c => c.id));
   const changed: Chunk[] = chunks.filter(c => indexed[c.id] !== c.hash);
@@ -119,7 +119,7 @@ const asText = (v: unknown) => (v === undefined || v === null ? '' : String(v));
 
 /** Stores every document's full text (and a few fields) so readers need only Redis. */
 async function syncDocs(client: RedisClient, spec: IndexSpec, areaDir: string): Promise<{docsWritten: number; docsRemoved: number}> {
-  const files = listMarkdown(areaDir).filter(f => DOC_DIRS.some(d => f.startsWith(d)));
+  const files = listMarkdown(areaDir).filter(f => DOC_DIRS.some(d => f.startsWith(`${d}/`)));
   const stored = (await client.hGetAll(docHashesKey(spec))) as Record<string, string>;
   const multi = client.multi();
   let docsWritten = 0;

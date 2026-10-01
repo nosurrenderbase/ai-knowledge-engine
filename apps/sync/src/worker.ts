@@ -106,6 +106,15 @@ export class Worker {
     }
   }
 
+  get pollIntervalMs(): number {
+    return this.deps.cfg.pollIntervalMs;
+  }
+
+  /** The after-tick hook (search index); never throws. */
+  async afterTick(): Promise<void> {
+    await this.deps.afterTick?.();
+  }
+
   async run(signal: AbortSignal, sleep: (ms: number, signal: AbortSignal) => Promise<void>): Promise<void> {
     while (!signal.aborted) {
       const result = await this.tick();
@@ -116,5 +125,29 @@ export class Worker {
           : this.deps.cfg.pollIntervalMs;
       await sleep(wait, signal);
     }
+  }
+}
+
+/**
+ * Several areas (backend, frontend) in one loop: each tick runs the workers one
+ * after another (they share the knowledge base clone), then waits. A usage
+ * limit hit by any of them pauses all until it resets: they share the account.
+ */
+export async function runWorkers(
+  workers: Worker[],
+  signal: AbortSignal,
+  sleep: (ms: number, signal: AbortSignal) => Promise<void>,
+  now: () => Date,
+): Promise<void> {
+  while (!signal.aborted) {
+    let until: Date | null = null;
+    for (const w of workers) {
+      if (signal.aborted) return;
+      const result = await w.tick();
+      await w.afterTick();
+      if (result.kind === 'limited' && (!until || result.until > until)) until = result.until;
+    }
+    const poll = Math.min(...workers.map(w => w.pollIntervalMs));
+    await sleep(until ? Math.max(until.getTime() - now().getTime(), 0) : poll, signal);
   }
 }

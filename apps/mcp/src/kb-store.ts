@@ -20,11 +20,22 @@ export interface GrepMatch {
   text: string;
 }
 
-/** Normalises a path the way readers type it: "backend/flows/x.md", "./flows/x.md", "flows/x". */
+/** Normalises an area-relative path the way readers type it: "./flows/x.md", "flows/x". */
 export function normalizeDocPath(input: string): string {
-  let p = input.trim().replace(/^\.?\//, '').replace(/^backend\//, '');
+  let p = input.trim().replace(/^\.?\//, '');
   if (!p.endsWith('.md')) p += '.md';
   return p;
+}
+
+/**
+ * Splits "frontend/flows/x.md" into area and area-relative path. Paths without
+ * a known area are the backend's (the only area there was at first).
+ */
+export function splitArea(input: string, areas: readonly string[]): {area: string; path: string} {
+  const p = input.trim().replace(/^\.?\//, '');
+  const first = p.split('/')[0];
+  if (areas.includes(first)) return {area: first, path: p.slice(first.length + 1)};
+  return {area: 'backend', path: p};
 }
 
 /** Case-insensitive the Turkish way, but keeping code names intact (I → i, İ → i). */
@@ -65,7 +76,7 @@ export class KbStore {
   }
 
   async list(prefix = ''): Promise<Omit<StoredDoc, 'text'>[]> {
-    const p = prefix.replace(/^\.?\//, '').replace(/^backend\//, '');
+    const p = prefix.replace(/^\.?\//, '');
     return (await this.all()).filter(d => d.path.startsWith(p)).map(({text: _text, ...rest}) => rest);
   }
 
@@ -73,7 +84,7 @@ export class KbStore {
   async grep(needle: string, opts: {prefix?: string; limit?: number} = {}): Promise<{matches: GrepMatch[]; truncated: boolean}> {
     const want = fold(needle);
     const limit = opts.limit ?? 50;
-    const prefix = (opts.prefix ?? '').replace(/^\.?\//, '').replace(/^backend\//, '');
+    const prefix = (opts.prefix ?? '').replace(/^\.?\//, '');
     const matches: GrepMatch[] = [];
     for (const doc of await this.all()) {
       if (!doc.path.startsWith(prefix)) continue;

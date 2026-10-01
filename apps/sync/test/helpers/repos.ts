@@ -222,7 +222,7 @@ export function cleanup(fx: Fixture): void {
 }
 
 /** Tells the fake `claude` what to do on each call (see fixtures/fake-claude.mjs). */
-export function scriptClaude(fx: Fixture, calls: object[]): void {
+export function scriptClaude(fx: Pick<Fixture, 'fakeState'>, calls: object[]): void {
   fs.writeFileSync(path.join(fx.fakeState, 'script.json'), JSON.stringify(calls));
   process.env.FAKE_CLAUDE_DIR = fx.fakeState;
 }
@@ -233,7 +233,7 @@ export interface RecordedCall {
   cwd: string;
 }
 
-export function claudeCalls(fx: Fixture): RecordedCall[] {
+export function claudeCalls(fx: Pick<Fixture, 'fakeState'>): RecordedCall[] {
   const file = path.join(fx.fakeState, 'calls.jsonl');
   if (!fs.existsSync(file)) return [];
   return fs

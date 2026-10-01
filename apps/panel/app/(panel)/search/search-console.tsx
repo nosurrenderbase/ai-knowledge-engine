@@ -1,28 +1,27 @@
 'use client';
 
-import type {SearchHit} from '@ai-knowledge-engine/search';
-import {App, Button, Card, Checkbox, Drawer, Form, Input, InputNumber, List, Space, Tag, Typography} from 'antd';
+import {App, Button, Card, Checkbox, Drawer, Form, Input, InputNumber, List, Select, Space, Tag, Typography} from 'antd';
 import {useState, useTransition} from 'react';
-import {readDoc, runSearch} from './actions';
+import {readDoc, runSearch, type AreaHit} from './actions';
 
 export function SearchConsole() {
   const {message} = App.useApp();
   const [pending, start] = useTransition();
-  const [result, setResult] = useState<{hits: SearchHit[]; ms: number} | null>(null);
+  const [result, setResult] = useState<{hits: AreaHit[]; ms: number} | null>(null);
   const [doc, setDoc] = useState<{path: string; text: string} | null>(null);
 
-  const onSearch = (v: {query: string; module?: string; kind?: string; includeRemoved?: boolean; limit?: number}) =>
+  const onSearch = (v: {query: string; area?: 'backend' | 'frontend'; module?: string; kind?: string; includeRemoved?: boolean; limit?: number}) =>
     start(async () => {
       const res = await runSearch(v);
       if (!res.ok) return void message.error(res.error);
       setResult(res);
     });
 
-  const open = (path: string) =>
+  const open = (h: AreaHit) =>
     start(async () => {
-      const text = await readDoc(path);
+      const text = await readDoc(h.area, h.path);
       if (text === null) return void message.error('Doküman bulunamadı');
-      setDoc({path, text});
+      setDoc({path: `${h.area}/${h.path}`, text});
     });
 
   return (
@@ -31,6 +30,17 @@ export function SearchConsole() {
         <Form layout="inline" onFinish={onSearch} initialValues={{limit: 10}}>
           <Form.Item name="query" rules={[{required: true, message: 'Soru yaz'}]} style={{flex: 1, minWidth: 300}}>
             <Input placeholder="ör. davet edene ne kadar para veriyoruz" allowClear />
+          </Form.Item>
+          <Form.Item name="area">
+            <Select
+              allowClear
+              placeholder="iki alan"
+              style={{width: 130}}
+              options={[
+                {value: 'backend', label: 'backend'},
+                {value: 'frontend', label: 'frontend'},
+              ]}
+            />
           </Form.Item>
           <Form.Item name="module">
             <Input placeholder="modül (ör. pvp-match)" style={{width: 170}} allowClear />
@@ -55,14 +65,16 @@ export function SearchConsole() {
           <List
             dataSource={result.hits}
             renderItem={(h, i) => (
-              <List.Item style={{cursor: 'pointer'}} onClick={() => open(h.path)}>
+              <List.Item style={{cursor: 'pointer'}} onClick={() => open(h)}>
                 <List.Item.Meta
                   title={
                     <Space wrap>
                       <span>
                         {i + 1}. {h.title}
                       </span>
-                      <Typography.Text code>{h.path}</Typography.Text>
+                      <Typography.Text code>
+                        {h.area}/{h.path}
+                      </Typography.Text>
                       {h.section && <Typography.Text type="secondary">› {h.section}</Typography.Text>}
                       {h.status && <Tag color={h.status === 'kaldırıldı' ? 'red' : 'blue'}>{h.status}</Tag>}
                       <Tag>skor {h.score}</Tag>

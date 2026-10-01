@@ -1,13 +1,14 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import {generateCards, loadDocs} from '@ai-knowledge-engine/kb';
+import {generateCards, generateFrontendDocs, loadDocs} from '@ai-knowledge-engine/kb';
 import {dropStampOnlyChanges, snapshotGenBlocks} from './cards.ts';
 import {parseNameStatus, relevantChanges, type Change} from './changes.ts';
 import {runClaude, type ClaudeOutcome, type ClaudeRequest, type Report} from './claude.ts';
 import type {Config} from './config.ts';
 import {Git, type Merge} from './git.ts';
 import {planGroups} from './groups.ts';
-import {computeImpact, type CodeView} from './impact.ts';
+import {computeFrontendImpact} from './frontend-impact.ts';
+import {computeImpact, type CodeView, type Impact} from './impact.ts';
 import type {Logger} from './log.ts';
 import {buildFixMessage, buildRunMessage, loadSystemPrompt} from './prompt.ts';
 import {describeMerges, type Job} from './queue.ts';
@@ -117,6 +118,59 @@ async function finish(cfg: Config, deps: JobDeps, kb: Git, head7: string, messag
   await kb.push(cfg.kbRemote, cfg.kbBranch);
 }
 
+interface Prepared {
+  impact: Impact;
+  /** Generated documents whose content changed (repo-relative). */
+  regeneratedCards: string[];
+  /** Resolver/controller files to check endpoint coverage for (backend). */
+  endpointFiles: string[];
+}
+
+/** Backend: impact from sources and category rules, then use case cards for the touched modules. */
+async function prepareBackend(cfg: Config, kb: Git, code: Git, job: Job, changes: Change[]): Promise<Prepared> {
+  const areaDir = path.join(cfg.kbRepo, cfg.area);
+  const view: CodeView = {
+    read: async (c: Change) => {
+      if (c.status === 'D') return code.show(job.base, c.path);
+      const file = path.join(cfg.codeRepo, c.path);
+      return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+    },
+    moduleExists: m => fs.existsSync(path.join(cfg.codeRepo, 'src/modules', m)),
+  };
+  const impact = await computeImpact(changes, loadDocs(areaDir), view);
+  generateCards({areaDir, sourceDir: cfg.codeRepo, modules: impact.cardModules});
+  const regeneratedCards = await dropStampOnlyChanges(kb, cfg.area);
+  const endpointFiles = changes.filter(c => c.status !== 'D' && /\.(resolver|controller)\.ts$/.test(c.path)).map(c => c.path);
+  return {impact, regeneratedCards, endpointFiles};
+}
+
+/**
+ * Frontend: every generated document (operation and screen cards, API map,
+ * unused code) is rebuilt from the app and the backend; the impact list then
+ * adds the cards that changed and the flows using them.
+ */
+async function prepareFrontend(cfg: Config, kb: Git, changes: Change[]): Promise<Prepared> {
+  if (!cfg.backendRepo) throw new JobFailed('frontend için backend kod reposu (CODE_REPO) gerekli', true);
+  const areaDir = path.join(cfg.kbRepo, cfg.area);
+  const before = new Set(loadDocs(areaDir).map(d => d.path));
+  const generated = generateFrontendDocs({
+    areaDir,
+    sourceDir: cfg.codeRepo,
+    backendDir: cfg.backendRepo,
+    backendAreaDir: path.join(cfg.kbRepo, 'backend'),
+  });
+  const regeneratedCards = await dropStampOnlyChanges(kb, cfg.area);
+  const prefix = `${cfg.area}/`;
+  const changedRel = regeneratedCards.map(f => f.slice(prefix.length));
+  const newCards = new Set(changedRel.filter(f => !before.has(f)));
+  const docs = loadDocs(areaDir);
+  const impact = computeFrontendImpact(changes, docs, changedRel, newCards);
+  for (const orphan of generated.orphanCards) {
+    impact.docs.set(orphan, [...(impact.docs.get(orphan) ?? []), 'işlem koddan kaldırıldı: "kaldırıldı" işaretle, linklerini kaldır']);
+  }
+  return {impact, regeneratedCards, endpointFiles: []};
+}
+
 /** Runs one job end to end: diff → cards → Claude → validation → commit → push. */
 export async function runJob(job: Job, deps: JobDeps): Promise<JobResult> {
   const {cfg, log} = deps;
@@ -136,19 +190,9 @@ export async function runJob(job: Job, deps: JobDeps): Promise<JobResult> {
     return {commitMessage: message, report: null, changedDocs: [], costUsd: 0};
   }
 
-  const view: CodeView = {
-    read: async (c: Change) => {
-      if (c.status === 'D') return code.show(job.base, c.path);
-      const file = path.join(cfg.codeRepo, c.path);
-      return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
-    },
-    moduleExists: m => fs.existsSync(path.join(cfg.codeRepo, 'src/modules', m)),
-  };
-  const impact = await computeImpact(changes, loadDocs(areaDir), view);
+  const {impact, regeneratedCards, endpointFiles} =
+    cfg.area === 'frontend' ? await prepareFrontend(cfg, kb, changes) : await prepareBackend(cfg, kb, code, job, changes);
   log('info', 'etki listesi çıkarıldı', {head: head7, docs: impact.docs.size, cardModules: impact.cardModules});
-
-  generateCards({areaDir, sourceDir: cfg.codeRepo, modules: impact.cardModules});
-  const regeneratedCards = await dropStampOnlyChanges(kb, cfg.area);
   const genBlocks = snapshotGenBlocks(cfg.kbRepo, cfg.area);
 
   const systemPrompt = loadSystemPrompt(cfg.promptsDir, cfg.area);
@@ -172,10 +216,6 @@ export async function runJob(job: Job, deps: JobDeps): Promise<JobResult> {
       part: groups.length > 1 ? {index: index + 1, total: groups.length} : undefined,
     }),
   });
-  const endpointFiles = changes
-    .filter(c => c.status !== 'D' && /\.(resolver|controller)\.ts$/.test(c.path))
-    .map(c => c.path);
-
   // Large jobs: one call per group; validation feedback then continues the last session.
   let costUsd = 0;
   const reports: Report[] = [];
