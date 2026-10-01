@@ -154,7 +154,7 @@ export class GameDb {
 
   private async teamCard(t: Document): Promise<unknown> {
     const owner = t.ownerId ? await this.db.collection('users').findOne({_id: t.ownerId}, {projection: {boss: 1}}) : null;
-    const tl = await this.db.collection('team_leagues').findOne({teamId: t._id}, {projection: {currentLeagueDefinitionId: 1, current: 1, isBot: 1, stats: 1}});
+    const tl = await this.db.collection('team_leagues').findOne({teamId: anyId(hex(t._id))}, {projection: {currentLeagueDefinitionId: 1, current: 1, isBot: 1, stats: 1}});
     return redact({
       teamId: t._id,
       name: t.name,
