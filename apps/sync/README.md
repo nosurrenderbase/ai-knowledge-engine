@@ -81,7 +81,7 @@ deploy/run.sh once        # sırayı bir kez işle ve çık
 DRY_RUN=1 deploy/run.sh once   # sıradaki tek işi yerelde commit et, push etme
 ```
 
-Loglar stderr'e satır başına bir JSON nesnesi olarak yazılır. Süren iş bitmeden kapanırsa watermark ilerlemez; açılışta aynı merge'den devam edilir.
+Loglar stderr'e satır başına bir JSON nesnesi olarak yazılır. İş sürerken `work/state/kbsync-busy.json` durur; otomatik deploy işçiyi yalnız bu dosya yokken yeniden başlatır. Süren iş bitmeden kapanırsa watermark ilerlemez; açılışta aynı merge'den devam edilir.
 
 ### macOS (launchd)
 
