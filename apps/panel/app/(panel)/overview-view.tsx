@@ -1,7 +1,8 @@
 'use client';
 
 import type {DailyTotal, Overview} from '@ai-knowledge-engine/accounts';
-import {Card, Col, Descriptions, Row, Statistic, Table, Tag, Typography} from 'antd';
+import {Card, Col, Descriptions, Row, Table, Tag, Typography} from 'antd';
+import {StatTile} from '@/components/ui';
 import {ENGINE_REPO} from '@/lib/areas';
 import type {Versions} from '@/lib/versions';
 import {DailyBars} from '@/components/daily-bars';
@@ -27,7 +28,17 @@ function VersionsCard({v}: {v: Versions}) {
     return {...s, status};
   });
   return (
-    <Card title="Sürümler">
+    <Card
+      title="Sürümler"
+      extra={
+        live ? (
+          <span className="kb-stat-label" style={{display: 'inline-flex', alignItems: 'center'}}>
+            <span className="kb-dot" />
+            canlı · <span className="kb-mono" style={{marginLeft: 6}}>{live.slice(0, 8)}</span>
+          </span>
+        ) : null
+      }
+    >
       <Descriptions
         column={{xs: 1, md: 3}}
         size="small"
@@ -90,7 +101,7 @@ export function OverviewView({o, days, indexes, versions}: {o: Overview; days: D
       {stats.map(([title, value]) => (
         <Col key={title} xs={12} md={8} xl={4}>
           <Card>
-            <Statistic title={title} value={value} />
+            <StatTile label={title} value={value.toLocaleString('tr-TR')} />
           </Card>
         </Col>
       ))}

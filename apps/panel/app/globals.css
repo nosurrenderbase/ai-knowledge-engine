@@ -1,0 +1,150 @@
+/* Panel look: deep night background, one cyan→violet accent, glass cards. Kept quiet on purpose. */
+:root {
+  --kb-bg: #070b14;
+  --kb-accent-a: #22d3ee;
+  --kb-accent-b: #8b5cf6;
+  --kb-gradient: linear-gradient(135deg, var(--kb-accent-a), var(--kb-accent-b));
+  --kb-line: rgba(148, 163, 184, 0.12);
+  --kb-glass: rgba(15, 22, 38, 0.62);
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--kb-bg);
+  color-scheme: dark;
+}
+
+body {
+  background:
+    radial-gradient(1100px 600px at 85% -10%, rgba(139, 92, 246, 0.16), transparent 60%),
+    radial-gradient(900px 500px at -10% 10%, rgba(34, 211, 238, 0.1), transparent 55%),
+    linear-gradient(var(--kb-line) 1px, transparent 1px) 0 0 / 48px 48px,
+    linear-gradient(90deg, var(--kb-line) 1px, transparent 1px) 0 0 / 48px 48px,
+    var(--kb-bg);
+  background-attachment: fixed;
+}
+
+/* Grid lines fade out towards the bottom so content stays calm. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent 0%, var(--kb-bg) 75%);
+  z-index: 0;
+}
+
+.ant-layout,
+.ant-layout-content {
+  background: transparent !important;
+  position: relative;
+  z-index: 1;
+}
+
+.ant-card {
+  background: var(--kb-glass) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--kb-line) !important;
+  transition: border-color 0.2s ease;
+}
+.ant-card:hover {
+  border-color: rgba(139, 92, 246, 0.35) !important;
+}
+.ant-card-head {
+  border-bottom-color: var(--kb-line) !important;
+}
+.ant-card-head-title {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.ant-table,
+.ant-table-thead > tr > th {
+  background: transparent !important;
+}
+.ant-table-thead > tr > th {
+  color: rgba(226, 232, 240, 0.55) !important;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+code,
+.ant-typography code,
+.kb-mono {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace !important;
+}
+.ant-typography code {
+  background: rgba(139, 92, 246, 0.12) !important;
+  border: 1px solid rgba(139, 92, 246, 0.25) !important;
+  border-radius: 6px;
+}
+
+.kb-gradient-text {
+  background: var(--kb-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.kb-stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(226, 232, 240, 0.55);
+}
+.kb-stat-value {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin-top: 6px;
+}
+
+/* Sider */
+.kb-sider {
+  background: rgba(7, 11, 20, 0.72) !important;
+  backdrop-filter: blur(14px);
+  border-right: 1px solid var(--kb-line);
+}
+.kb-sider .ant-menu {
+  background: transparent !important;
+  border-inline-end: none !important;
+}
+.kb-sider .ant-menu-item-selected {
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.14), rgba(139, 92, 246, 0.14)) !important;
+  box-shadow: inset 2px 0 0 var(--kb-accent-a);
+}
+.kb-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--kb-gradient);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: #070b14;
+  box-shadow: 0 0 24px rgba(139, 92, 246, 0.35);
+}
+
+.kb-title-rule {
+  height: 2px;
+  width: 56px;
+  border-radius: 2px;
+  background: var(--kb-gradient);
+  margin: 8px 0 20px;
+}
+
+.kb-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 10px #34d399;
+  margin-right: 8px;
+}
