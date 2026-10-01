@@ -106,7 +106,7 @@ function SettingsTab({v}: {v: SettingsView}) {
   const [pending, start] = useTransition();
   const [editing, setEditing] = useState<SettingRow | null>(null);
   const [value, setValue] = useState('');
-  const canWrite = Boolean(v.identity && v.keyReady);
+  const canWrite = v.keyReady && (Boolean(v.identity) || !v.accessConfigured);
   const groups = [...new Set(v.rows.map(r => r.group))];
 
   const run = (fn: () => Promise<Result>, ok: string) =>
@@ -121,18 +121,17 @@ function SettingsTab({v}: {v: SettingsView}) {
   return (
     <Row gutter={[18, 18]}>
       <Col xs={24}>
-        {!v.accessConfigured ? (
+        {!v.keyReady ? (
+          <Alert type="warning" showIcon message="Sunucu anahtarı henüz hazır değil" description="Deploy ajanı ilk turunda şifreleme anahtarını üretir; birkaç dakika içinde açılır." />
+        ) : !v.accessConfigured ? (
           <Alert
             type="info"
             showIcon
-            icon={<LockOutlined />}
-            message="Ayarlar şimdilik salt okunur"
-            description="Değiştirmek için panelin önüne Cloudflare Access konmalı ve CF_ACCESS_TEAM_DOMAIN / CF_ACCESS_AUD sunucuda tanımlanmalı. Böylece her değişiklik gerçek kişiyle kaydedilir."
+            message="Değişiklikler “panel” adıyla kaydediliyor"
+            description="Değer şifrelenip sıraya yazılır; sunucu ≈2 dakika içinde uygular, ilgili servisi yeniden başlatır ve sağlık kontrolü yapar, sorun çıkarsa eski değere döner. Cloudflare Access tanımlanınca (CF_ACCESS_TEAM_DOMAIN, CF_ACCESS_AUD) yazmak için Access girişi zorunlu olur ve kayda kişinin e-postası düşer."
           />
         ) : !v.identity ? (
           <Alert type="warning" showIcon message="Cloudflare Access kimliği doğrulanamadı" description="Paneli panel.efsanebaskan.com üzerinden (Access girişiyle) açınca ayarlar değiştirilebilir." />
-        ) : !v.keyReady ? (
-          <Alert type="warning" showIcon message="Sunucu anahtarı henüz hazır değil" description="Deploy ajanı ilk turunda şifreleme anahtarını üretir; birkaç dakika içinde açılır." />
         ) : (
           <Alert
             type="success"

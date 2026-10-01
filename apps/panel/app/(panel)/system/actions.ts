@@ -5,13 +5,18 @@ import {requestChange} from '@ai-knowledge-engine/accounts';
 import {displayValue, seal, settingByKey, validateChange, type Target} from '@ai-knowledge-engine/settings';
 import {revalidatePath} from 'next/cache';
 import {requireAdmin} from '@/lib/auth';
-import {accessIdentity} from '@/lib/cfaccess';
+import {accessConfigured, accessIdentity} from '@/lib/cfaccess';
 import {services} from '@/lib/services';
 
 export type Result = {ok: true} | {ok: false; error: string};
 
-/** Writes need the panel session AND a verified Cloudflare Access identity (recorded with the change). */
+/**
+ * Who is writing. Once Cloudflare Access is configured, a verified Access
+ * identity is required (and recorded); until then the panel session is enough
+ * and the change is recorded as "panel".
+ */
 async function writer(): Promise<string> {
+  if (!accessConfigured()) return 'panel';
   const who = await accessIdentity();
   if (!who) throw new Error('Ayar değiştirmek için Cloudflare Access ile giriş gerekli');
   return who;

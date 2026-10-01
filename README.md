@@ -67,7 +67,7 @@ Her adım `work/logs/deploy.log`'a, deploy/atlama/hata/geri alma `ALERT_WEBHOOK_
 
 **Ayarlar** sekmesi [`packages/settings/src/catalog.ts`](packages/settings/src/catalog.ts)'teki anahtarları gösterir (sırların yalnız son 4 karakteri). Değiştirme:
 
-1. Panel yalnız Cloudflare Access ile doğrulanmış bir kişiye yazma izni verir (`CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`; ikisi yoksa salt okunur).
+1. Yazma: `CF_ACCESS_TEAM_DOMAIN` ve `CF_ACCESS_AUD` tanımlıysa yalnız Cloudflare Access ile doğrulanmış kişi yazabilir ve kayda e-postası düşer; tanımlı değilse panel oturumu yeter, kayıt "panel" adıyla tutulur.
 2. Yeni değer panelde sunucunun açık anahtarıyla şifrelenip Postgres'teki `settings_changes` sırasına yazılır. Özel anahtar yalnız `work/settings/`'te durur; panel ve veritabanı değeri açamaz.
 3. Deploy ajanı (2 dakikada bir) değeri açar, katalogla tekrar doğrular, dosyanın yedeğini alır (`work/settings/backups/`), yazar, anahtarı okuyan servisi yeniden başlatır, sağlık kontrolü yapar; olmazsa eski dosyayı geri koyar. Uygulanınca şifreli değer silinir; satır, kimin neyi ne zaman değiştirdiğinin kaydı olarak kalır.
 
