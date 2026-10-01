@@ -2,7 +2,7 @@
 
 Bilgi tabanını kod reposuyla senkron tutan işçi. Kod reposunun `main`'ini yoklar; `backend/.source-commit`'ten sonraki merge'leri **sırayla, tek tek** işler: etkilenen dokümanları bulur, kartları script'le üretir, Claude Code'a (`claude -p`, abonelikle) dokümanları güncelletir, doğrular, commit edip push eder. Kurallar ve gerekçeler: [`prompts/backend/UPDATE-PROMPT.md`](../../prompts/backend/UPDATE-PROMPT.md); sistem prompt'u da oradan okunur.
 
-`FRONTEND_REPO` verilirse aynı işçi uygulama reposunu (`efsane-baskan-rn`) da `frontend/.source-commit`'ten itibaren aynı kurallarla izler ([`prompts/frontend/UPDATE-PROMPT.md`](../../prompts/frontend/UPDATE-PROMPT.md)). Alanlar sırayla işlenir, aynı anda hep tek iş vardır. Frontend işinde API ve ekran kartları, API haritası ve kullanılmayan kod raporu script'le yeniden üretilir; etki listesi değişen dosyaları `sources`'unda tutan akışlardan, değişen kartlardan ve kategori kurallarından (uzak ayarlar, analitik, mimari) çıkar.
+`FRONTEND_REPO` verilirse aynı işçi uygulama reposunu (`efsane-baskan-rn`) da `frontend/.source-commit`'ten itibaren aynı kurallarla izler ([`prompts/frontend/UPDATE-PROMPT.md`](../../prompts/frontend/UPDATE-PROMPT.md)). `ENGINE_REPO` verilirse maç motoru reposu (`match-engine`) da `mac-motoru/.source-commit`'ten itibaren izlenir ([`prompts/mac-motoru/UPDATE-PROMPT.md`](../../prompts/mac-motoru/UPDATE-PROMPT.md)); her işte metrik kartları (stat → motor alanı → çarpan → kullanıldığı yer), metrik haritası ve oyun stilleri tablosu script'le yeniden üretilir. Alanlar sırayla işlenir, aynı anda hep tek iş vardır. Frontend işinde API ve ekran kartları, API haritası ve kullanılmayan kod raporu script'le yeniden üretilir; etki listesi değişen dosyaları `sources`'unda tutan akışlardan, değişen kartlardan ve kategori kurallarından (uzak ayarlar, analitik, mimari) çıkar.
 
 ## Nasıl çalışır (kısaca)
 
@@ -22,7 +22,8 @@ Bilgi tabanını kod reposuyla senkron tutan işçi. Kod reposunun `main`'ini yo
 - İki klon, ikisi de yalnız işçinin (işçi onları `reset --hard` ve `checkout --force` ile yönetir; üzerinde çalışılan bir kopyayı vermeyin). Varsayılan yerleri `work/` (git dışı):
   - `work/kb`: bilgi tabanı (push yetkisiyle),
   - `work/code`: kod reposu (okuma yetkisi yeter),
-  - `work/frontend`: (isteğe bağlı) uygulama reposu.
+  - `work/frontend`: (isteğe bağlı) uygulama reposu,
+  - `work/engine`: (isteğe bağlı) maç motoru reposu.
 
 İşçinin kodu bu repodadır; yönettiği klonlardan ayrı olduğu için onları sıfırlarken kendini etkilemez. Kart üreticisi ve chunk'lama `packages/kb`'den doğrudan çağrılır; bilgi tabanı klonunda ayrıca bağımlılık kurmak gerekmez.
 
@@ -34,6 +35,7 @@ npm ci
 git clone git@github.com:nosurrenderbase/ai-knowledge-base.git work/kb
 git clone git@github.com:nosurrenderbase/nestjs-boilerplate.git work/code
 git clone git@github.com:nosurrenderbase/efsane-baskan-rn.git work/frontend   # frontend alanı için
+git clone git@github.com:nosurrenderbase/match-engine.git work/engine          # maç motoru alanı için
 cp deploy/kbsync.env.example deploy/kbsync.env   # yolları ve PATH_PREFIX'i düzenle
 deploy/run.sh once                               # bir tur: sıra boşsa "idle"
 ```
@@ -49,6 +51,8 @@ deploy/run.sh once                               # bir tur: sıra boşsa "idle"
 | `KB_AREA` | `backend` | Backend alanının klasörü |
 | `FRONTEND_REPO` | | Uygulama reposu klonu; verilirse `frontend/` alanı da senkronlanır |
 | `FRONTEND_REMOTE` / `FRONTEND_BRANCH` | `origin` / `main` | |
+| `ENGINE_REPO` | | Maç motoru klonu; verilirse `mac-motoru/` alanı da senkronlanır |
+| `ENGINE_REMOTE` / `ENGINE_BRANCH` | `origin` / `main` | |
 | `KB_REMOTE` / `KB_BRANCH` | `origin` / `main` | |
 | `CODE_REMOTE` / `CODE_BRANCH` | `origin` / `main` | |
 | `POLL_INTERVAL_MS` | `120000` | Yoklama aralığı |
