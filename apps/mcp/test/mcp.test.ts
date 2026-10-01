@@ -259,6 +259,6 @@ describe('MCP over HTTP', {skip: redis ? false : 'yerel Redis yok (docker compos
     const bad = await fetch(url, {method: 'POST', headers: {authorization: `Bearer ${TOKEN}`}, body: '{bozuk'});
     assert.equal(bad.status, 400);
     const health = await fetch(new URL('/health', url));
-    assert.deepEqual(await health.json(), {ok: true});
+    assert.deepEqual(await health.json(), {ok: true, version: process.env.APP_VERSION ?? null});
   });
 });
