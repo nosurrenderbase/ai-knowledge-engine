@@ -4,10 +4,12 @@
  *   npm run gen:cards -- --kb <kb>/backend --source <kod reposu> <modül> [<modül> ...]
  *   npm run build:chunks -- --kb <kb>/backend [--out chunks.jsonl]
  *   node src/cli.ts gen-frontend --kb <kb>/frontend --source <frontend repo> --backend <backend repo> --backend-kb <kb>/backend
+ *   node src/cli.ts gen-engine --kb <kb>/mac-motoru --source <match-engine repo>
  */
 import * as path from 'node:path';
 import {parseArgs} from 'node:util';
 import {generateCards} from './cards.ts';
+import {generateEngineDocs} from './engine-cards.ts';
 import {generateFrontendDocs} from './frontend-cards.ts';
 import {buildChunks, writeChunks} from './chunks.ts';
 
@@ -46,6 +48,11 @@ if (command === 'gen-cards') {
   });
   console.log(`frontend ${res.commit}: ${res.operations} işlem kartı, ${res.routes} ekran kartı, ${res.written.length} dosya yazıldı`);
   if (res.orphanCards.length) console.log(`artık işlemi olmayan kartlar: ${res.orphanCards.join(', ')}`);
+} else if (command === 'gen-engine') {
+  if (!values.source) fail('--source <maç motoru reposu> gerekli');
+  const res = generateEngineDocs({areaDir, sourceDir: path.resolve(values.source)});
+  console.log(`mac-motoru ${res.commit}: ${res.metrics} metrik kartı, ${res.written.length} dosya yazıldı`);
+  if (res.orphanCards.length) console.log(`artık stati olmayan kartlar: ${res.orphanCards.join(', ')}`);
 } else if (command === 'build-chunks') {
   const out = path.resolve(values.out ?? 'chunks.jsonl');
   const chunks = buildChunks(areaDir);

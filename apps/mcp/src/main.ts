@@ -78,7 +78,7 @@ setTimeout(purge, 60_000).unref();
 // One shared embedder and query cache: a question searched in both areas is embedded once.
 const voyage = new Voyage(cfg.voyage);
 const queryCache = new EmbeddingCache(null, cfg.target.model, 'query');
-const areaNames = (process.env.SEARCH_AREAS ?? 'backend,frontend').split(',').map(a => a.trim()).filter(Boolean);
+const areaNames = (process.env.SEARCH_AREAS ?? 'backend,frontend,mac-motoru').split(',').map(a => a.trim()).filter(Boolean);
 const areas = new Map(
   areaNames.map(area => {
     const target = loadSearchConfig(process.env, area).target;

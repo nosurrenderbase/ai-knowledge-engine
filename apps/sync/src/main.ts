@@ -1,6 +1,7 @@
 import {setTimeout as delay} from 'node:timers/promises';
 import {createClient} from 'redis';
 import {loadSearchConfig, searchConfigured, Voyage} from '@ai-knowledge-engine/search';
+import {areaLabel} from '@ai-knowledge-engine/kb';
 import {loadAreaConfigs, type Config} from './config.ts';
 import {Git} from './git.ts';
 import {defaultClaude, readQueue, runJob} from './job.ts';
@@ -47,7 +48,7 @@ async function main(): Promise<void> {
         embedder: new Voyage(search.voyage),
         target: search.target,
         cacheDir: search.cacheDir,
-        label: cfg.area === 'backend' ? undefined : cfg.area[0].toUpperCase() + cfg.area.slice(1),
+        label: areaLabel(cfg.area),
         log,
         alert,
       });

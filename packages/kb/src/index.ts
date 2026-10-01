@@ -2,5 +2,7 @@ export {GEN_END, GEN_START, MANUAL_PLACEHOLDER, generateCards, genBlock, manualP
 export {graphqlOperationDetails, graphqlOperations, restRoutes, type GraphqlOperation} from './endpoints.ts';
 export {generateFrontendDocs, kebab, routeSlug, type FrontendDocsOptions, type FrontendDocsResult} from './frontend-cards.ts';
 export {buildFrontendModel, opKey, parseOperation, routeClosure, routePath, routesReaching, type FrontendModel, type GqlOperation} from './frontend-model.ts';
-export {DOC_DIRS, MAX_CHARS, buildChunks, writeChunks, type Chunk, type ChunkOptions} from './chunks.ts';
+export {areaLabel, DOC_DIRS, MAX_CHARS, buildChunks, writeChunks, type Chunk, type ChunkOptions} from './chunks.ts';
 export {FrontmatterError, listMarkdown, loadDocs, parseDoc, stringList, type KbDoc} from './docs.ts';
+export {generateEngineDocs, type EngineDocsOptions, type EngineDocsResult} from './engine-cards.ts';
+export {buildEngineModel, factorAt, fieldsOf, goConstants, inPool, isPoolFunc, statSlug, usersOf, type EngineFunc, type EngineModel} from './engine-model.ts';

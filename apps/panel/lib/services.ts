@@ -6,8 +6,9 @@ import {createDb, databaseUrl, migrate, type Db} from '@ai-knowledge-engine/acco
 import {EmbeddingCache, loadDotEnv, loadSearchConfig, Voyage, type SearchConfig, type SearchContext} from '@ai-knowledge-engine/search';
 import {createClient} from 'redis';
 
-export const AREAS = ['backend', 'frontend'] as const;
-export type AreaName = (typeof AREAS)[number];
+import {AREAS, type AreaName} from './areas';
+
+export {AREAS, type AreaName};
 
 export interface Services {
   db: Db;
@@ -33,7 +34,7 @@ async function init(): Promise<Services> {
     const target = loadSearchConfig(process.env, area).target;
     return {client: redis, voyage, spec: target, model: target.model, queryCache};
   };
-  const areas: Record<AreaName, SearchContext> = {backend: context('backend'), frontend: context('frontend')};
+  const areas = Object.fromEntries(AREAS.map(a => [a, context(a)])) as Record<AreaName, SearchContext>;
   return {db, redis, cfg, areas};
 }
 

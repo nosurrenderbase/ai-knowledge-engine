@@ -18,8 +18,17 @@ export const STATUSES = [
 /** Status values of the app's documents (see prompts/frontend/PROMPT.md). */
 export const FRONTEND_STATUSES = ['canlıda', 'kısmen canlıda', 'bayrakla kapalı', 'kodda var, erişilmiyor', 'kaldırıldı'];
 
+/** Status values of the match engine's documents (see prompts/mac-motoru/PROMPT.md). */
+export const ENGINE_STATUSES = ['canlıda', 'kısmen canlıda', 'bayrakla kapalı', 'kodda var, kullanılmıyor', 'kaldırıldı'];
+
+export function statusesFor(area: string): string[] {
+  if (area === 'frontend') return FRONTEND_STATUSES;
+  if (area === 'mac-motoru') return ENGINE_STATUSES;
+  return STATUSES;
+}
+
 /** Folders whose documents only a generator creates (agents fill their written part). */
-const GENERATED_DIRS = ['usecases/', 'api/', 'ekranlar/'];
+const GENERATED_DIRS = ['usecases/', 'api/', 'ekranlar/', 'metrikler/'];
 
 /** Area-root documents the worker maintains itself; the agent must not touch them. */
 const META_DOCS = new Set(['README.md']);
@@ -79,6 +88,23 @@ export function markdownLinks(text: string): string[] {
   return links;
 }
 
+/**
+ * Mixed-case Go names in backticks ("attrFactor", "Attr.DribbleFactor",
+ * "fixtureAttrShifts()"): every camelCase / PascalCase segment, for the
+ * match engine where most names are not CONSTANT_CASE.
+ */
+export function goIdentifiers(line: string): string[] {
+  const out: string[] = [];
+  for (const m of line.matchAll(/`([^`\n]+)`/g)) {
+    const token = m[1].trim();
+    if (!/^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*(?:\(\))?$/.test(token)) continue;
+    for (const seg of token.replace(/\(\)$/, '').split('.')) {
+      if (/[a-z][A-Z]|^[A-Z][a-z0-9]+[A-Z]/.test(seg)) out.push(seg);
+    }
+  }
+  return out;
+}
+
 export function backtickIdentifiers(line: string): string[] {
   const out: string[] = [];
   for (const m of line.matchAll(/`([^`\n]+)`/g)) {
@@ -134,7 +160,7 @@ export async function validate(input: ValidationInput): Promise<ValidationResult
   const regenerated = new Set(input.regeneratedCards);
   let editedDocs = 0;
 
-  const statuses = area === 'frontend' ? FRONTEND_STATUSES : STATUSES;
+  const statuses = statusesFor(area);
   for (const file of changed) {
     const rel = file.slice(area.length + 1);
     const text = fs.readFileSync(path.join(kbRoot, file), 'utf8');
@@ -159,12 +185,14 @@ export async function validate(input: ValidationInput): Promise<ValidationResult
       }
     }
     if (meta.status !== 'kaldırıldı') {
-      for (const src of stringList(meta.sources)) {
-        if (!codeFiles.has(src)) retryable.push(`${rel}: sources içindeki ${src} kodda yok`);
+      for (const key of ['sources', 'models'] as const) {
+        for (const src of stringList(meta[key])) {
+          if (!codeFiles.has(src)) retryable.push(`${rel}: ${key} içindeki ${src} kodda yok`);
+        }
       }
     }
-    // related, api and backend lists are relative to the area folder (backend: "../backend/…").
-    for (const key of ['related', 'api', 'backend'] as const) {
+    // related, api, metrics and backend lists are relative to the area folder (backend: "../backend/…").
+    for (const key of ['related', 'api', 'metrics', 'backend'] as const) {
       for (const r of stringList(meta[key])) {
         if (!fs.existsSync(path.join(areaDir, r))) retryable.push(`${rel}: ${key} içindeki ${r} yok`);
       }
@@ -191,7 +219,9 @@ export async function validate(input: ValidationInput): Promise<ValidationResult
   }
 
   const tokens = toCheck.flatMap(({file, lines}) =>
-    lines.filter(l => !HISTORICAL.test(l)).flatMap(l => backtickIdentifiers(l).map(t => ({file, t}))),
+    lines
+      .filter(l => !HISTORICAL.test(l))
+      .flatMap(l => [...new Set([...backtickIdentifiers(l), ...(area === 'mac-motoru' ? goIdentifiers(l) : [])])].map(t => ({file, t}))),
   );
   if (tokens.length) {
     const known = await codeIdentifiers(codeGit, input.head);

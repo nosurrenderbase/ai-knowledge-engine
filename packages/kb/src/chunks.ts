@@ -112,7 +112,13 @@ const AREA: Record<string, string> = {
 };
 
 /** Folders of an area that hold documents (everything else is process files). */
-export const DOC_DIRS = ['genel', 'flows', 'modules', 'usecases', 'api', 'ekranlar'];
+/** Breadcrumb label of an area's chunks; none for the backend (its chunk hashes predate areas). */
+export function areaLabel(area: string): string | undefined {
+  const labels: Record<string, string> = {frontend: 'Frontend', 'mac-motoru': 'Maç motoru'};
+  return area === 'backend' ? undefined : (labels[area] ?? area);
+}
+
+export const DOC_DIRS = ['genel', 'flows', 'modules', 'usecases', 'api', 'ekranlar', 'metrikler'];
 
 export interface ChunkOptions {
   /** Prefix of every breadcrumb, e.g. "Frontend". Omitted for the backend so its hashes stay as they were. */

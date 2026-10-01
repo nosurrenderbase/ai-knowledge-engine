@@ -10,7 +10,7 @@ export interface Config {
   codeRepo: string;
   codeRemote: string;
   codeBranch: string;
-  /** Knowledge base folder this worker keeps in sync ("backend" or "frontend"). */
+  /** Knowledge base folder this worker keeps in sync ("backend", "frontend", "mac-motoru"). */
   area: string;
   /** Frontend only: the backend code clone, for which API fields exist. */
   backendRepo?: string;
@@ -81,23 +81,37 @@ export function loadConfig(env: Env): Config {
   };
 }
 
+/** Knowledge base folder of the match engine (repo match-engine). */
+export const ENGINE_AREA = 'mac-motoru';
+
 /**
  * One config per knowledge base area: the backend (CODE_REPO) always, the app
- * (FRONTEND_REPO) when set. They share the knowledge base clone and settings.
+ * (FRONTEND_REPO) and the match engine (ENGINE_REPO) when set. They share the
+ * knowledge base clone and settings.
  */
 export function loadAreaConfigs(env: Env): Config[] {
   const backend = loadConfig(env);
-  const repo = env.FRONTEND_REPO?.trim();
-  if (!repo) return [backend];
-  return [
-    backend,
-    {
+  const configs = [backend];
+  const frontend = env.FRONTEND_REPO?.trim();
+  if (frontend) {
+    configs.push({
       ...backend,
       area: 'frontend',
-      codeRepo: path.resolve(repo),
+      codeRepo: path.resolve(frontend),
       codeRemote: env.FRONTEND_REMOTE ?? 'origin',
       codeBranch: env.FRONTEND_BRANCH ?? 'main',
       backendRepo: backend.codeRepo,
-    },
-  ];
+    });
+  }
+  const engine = env.ENGINE_REPO?.trim();
+  if (engine) {
+    configs.push({
+      ...backend,
+      area: ENGINE_AREA,
+      codeRepo: path.resolve(engine),
+      codeRemote: env.ENGINE_REMOTE ?? 'origin',
+      codeBranch: env.ENGINE_BRANCH ?? 'main',
+    });
+  }
+  return configs;
 }

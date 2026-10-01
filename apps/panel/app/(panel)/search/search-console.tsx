@@ -2,6 +2,7 @@
 
 import {App, Button, Card, Checkbox, Drawer, Form, Input, InputNumber, List, Select, Space, Tag, Typography} from 'antd';
 import {useState, useTransition} from 'react';
+import {AREAS, type AreaName} from '@/lib/areas';
 import {readDoc, runSearch, type AreaHit} from './actions';
 
 export function SearchConsole() {
@@ -10,7 +11,7 @@ export function SearchConsole() {
   const [result, setResult] = useState<{hits: AreaHit[]; ms: number} | null>(null);
   const [doc, setDoc] = useState<{path: string; text: string} | null>(null);
 
-  const onSearch = (v: {query: string; area?: 'backend' | 'frontend'; module?: string; kind?: string; includeRemoved?: boolean; limit?: number}) =>
+  const onSearch = (v: {query: string; area?: AreaName; module?: string; kind?: string; includeRemoved?: boolean; limit?: number}) =>
     start(async () => {
       const res = await runSearch(v);
       if (!res.ok) return void message.error(res.error);
@@ -34,12 +35,9 @@ export function SearchConsole() {
           <Form.Item name="area">
             <Select
               allowClear
-              placeholder="iki alan"
-              style={{width: 130}}
-              options={[
-                {value: 'backend', label: 'backend'},
-                {value: 'frontend', label: 'frontend'},
-              ]}
+              placeholder="tüm alanlar"
+              style={{width: 140}}
+              options={AREAS.map(a => ({value: a, label: a}))}
             />
           </Form.Item>
           <Form.Item name="module">

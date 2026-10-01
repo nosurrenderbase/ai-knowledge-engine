@@ -1,7 +1,8 @@
 /**
  * The MCP server: four read-only tools over the Efsane Başkan knowledge base,
- * which has two areas: backend (rules, numbers, server flows) and frontend
- * (the mobile app: screens, what the player sees, which API is called where).
+ * which has three areas: backend (rules, numbers, server flows), frontend
+ * (the mobile app: screens, what the player sees, which API is called where)
+ * and mac-motoru (the match engine: which stats decide a match, and how much).
  * One McpServer is built per HTTP request (stateless); the heavy parts
  * (Redis client, embedder, caches) are shared through `Services`.
  */
@@ -11,22 +12,25 @@ import {search, type SearchContext, type SearchHit} from '@ai-knowledge-engine/s
 import {z} from 'zod';
 import {splitArea, type KbStore} from './kb-store.ts';
 
-export const INSTRUCTIONS = `Efsane Başkan oyununun bilgi tabanı, iki alan:
+export const INSTRUCTIONS = `Efsane Başkan oyununun bilgi tabanı, üç alan:
 - backend/: sunucu kuralları, baremler (sayısal değerler), akışlar, hata kodları, operasyon.
 - frontend/: mobil uygulama: ekranlar, oyuncunun ne gördüğü ve bir bileşenin ne zaman göründüğü, hangi ekranın hangi API'yi (GraphQL query/mutation) ne zaman çağırdığı, uygulamadaki hata mesajları, uzak ayarlar (Firebase Remote Config), kullanılmayan kod.
+- mac-motoru/: maçları oynatan motor (Go): maçı hangi oyuncu statlarının, takım gücünün, taktiklerin ve oyun stillerinin nasıl ve ne kadar etkilediği, pas/şut/pres/kaleci gibi mekanizmalar, istatistik ve reytingin nasıl üretildiği, lig ve PvP maçlarının nasıl oynatıldığı.
 Okuyucular backend geliştirici, PM ve patron; cevapları Türkçe ver, soran kişinin teknik seviyesine göre.
 
 Nasıl kullanılır:
-1. Soruyu \`search\` ile ara (varsayılan: iki alanda birden; "area" ile daraltılabilir). Sonuçlar ilgili bölümü gösterir, cevabın tamamı değildir.
+1. Soruyu \`search\` ile ara (varsayılan: bütün alanlarda birden; "area" ile daraltılabilir). Sonuçlar ilgili bölümü gösterir, cevabın tamamı değildir.
 2. Cevabı vermeden önce en ilgili dokümanı \`read_doc\` ile baştan sona oku (yol alan önekiyle: "backend/flows/pvp/gunluk-hak.md", "frontend/flows/pvp/…").
 3. Sabit adı, hata kodu, GraphQL işlem/alan adı ya da bir sayı gibi birebir ifadeleri \`grep\` ile ara (ör. PVP_DAILY_LIMIT, createPvpMatch, 500.000).
 4. "Bu mutation/query'yi uygulamada nereler çağırıyor?" → frontend/genel/api-haritasi.md (backend alanı → frontend işlemi → ekran) ya da frontend/api/<işlem>.md kartı. "Bu ekran hangi API'leri çağırıyor?" → frontend/ekranlar/<rota>.md.
-5. Nereden başlayacağını bilmiyorsan backend/genel/genel-bakis.md (oyunun büyük resmi) ya da frontend/genel/genel-bakis.md (uygulamanın haritası) oku; ikisinde de "hangi soru için hangi doküman" tablosu var.
+5. "Şu stat/metrik maçta ne işe yarıyor, ne kadar etkili?" → mac-motoru/metrikler/<stat>.md kartı, mac-motoru/genel/metriklerin-etkisi.md (karşılaştırma ve ölçüm) ve mac-motoru/genel/metrik-haritasi.md (stat → motor fonksiyonu → çarpan). Oyun stilleri → mac-motoru/genel/oyun-stilleri.md.
+6. Nereden başlayacağını bilmiyorsan backend/genel/genel-bakis.md (oyunun büyük resmi), frontend/genel/genel-bakis.md (uygulamanın haritası) ya da mac-motoru/genel/genel-bakis.md (maç motoru) oku; hepsinde "hangi soru için hangi doküman" tablosu var.
 
 Cevap verirken:
 - Kaynağı belirt: doküman yolu ve bölüm.
-- Bir konunun kuralı backend'de, oyuncunun gördüğü frontend'dedir; ikisi de gerekiyorsa ikisini de oku (frontend akışları ilgili backend dokümanına link verir).
-- status alanına dikkat et. Backend: "canlıda", "kısmen canlıda", "kod main'de, istemci bağlı değil", "istemci kullanımı belirsiz", "bayrakla kapalı", "kaldırıldı". Frontend: "canlıda", "kısmen canlıda", "bayrakla kapalı", "kodda var, erişilmiyor", "kaldırıldı". "kaldırıldı" dokümanlar tarihsel kayıttır.
+- Bir konunun kuralı backend'de, oyuncunun gördüğü frontend'de, maçın içinde olan mac-motoru'ndadır; gerekiyorsa hepsini oku (dokümanlar birbirine link verir).
+- Maç motoru davranışı veriden (SkillCorner takip verisinden türetilmiş tablolardan) alır; oyuncu statları bu davranışı çarpanlarla büker. Etkiyi sorarken dokümandaki sayıları (çarpan, ölçüm) aktar, yorum katma.
+- status alanına dikkat et. Backend: "canlıda", "kısmen canlıda", "kod main'de, istemci bağlı değil", "istemci kullanımı belirsiz", "bayrakla kapalı", "kaldırıldı". Frontend: "canlıda", "kısmen canlıda", "bayrakla kapalı", "kodda var, erişilmiyor", "kaldırıldı". Maç motoru: "canlıda", "kısmen canlıda", "bayrakla kapalı", "kodda var, kullanılmıyor", "kaldırıldı". "kaldırıldı" dokümanlar tarihsel kayıttır.
 - "Bu kodda değil" / "uygulamada değil" yazan davranış başka bir sistemdedir; o alandan kesin bilgi verilemez.
 - "DB'de" ya da "Firebase'de" yazan değerler orada durur; tahmin etme.
 - Lig numaraları ters: "1. Lig" = Rising Stars (en üst), "2. Lig" = Amateur.
@@ -103,13 +107,13 @@ export function buildServer(services: Services, caller: Caller): McpServer {
     {
       title: 'Bilgi tabanında ara',
       description:
-        'Efsane Başkan bilgi tabanında anlamsal + kelime (hibrit) arama; varsayılan olarak backend ve frontend alanlarında birlikte. ' +
+        'Efsane Başkan bilgi tabanında anlamsal + kelime (hibrit) arama; varsayılan olarak bütün alanlarda (backend, frontend, mac-motoru) birlikte. ' +
         'Soruyu doğal dille yaz ("günde kaç PvP maçı oynanır", "PvP davet butonu ne zaman görünür"). En ilgili bölümleri döner; ' +
         'cevap için sonra read_doc ile dokümanın tamamını oku. "kaldırıldı" dokümanlar varsayılan olarak gizlidir.',
       inputSchema: {
         query: z.string().min(2).describe('Soru ya da aranan konu, Türkçe'),
-        area: areaParam.describe('Yalnız bu alan: backend (sunucu kuralları) ya da frontend (mobil uygulama). Boşsa ikisi.'),
-        module: z.string().optional().describe('Yalnız bu modül/alan klasörü (ör. backend: pvp-match, referral; frontend: pvp, lig)'),
+        area: areaParam.describe('Yalnız bu alan: backend (sunucu kuralları), frontend (mobil uygulama) ya da mac-motoru (maç motoru). Boşsa hepsi.'),
+        module: z.string().optional().describe('Yalnız bu modül/alan klasörü (ör. backend: pvp-match, referral; frontend: pvp, lig; mac-motoru: top-ustu, kaleci)'),
         kind: z.string().optional().describe('Yalnız bu doküman türü: flow, module, usecase, overview, infra, api, screen'),
         include_removed: z.boolean().optional().describe('"kaldırıldı" (tarihsel) dokümanları da getir'),
         limit: z.number().int().min(1).max(20).optional().describe('Sonuç sayısı (varsayılan 8)'),
@@ -212,8 +216,9 @@ export function buildServer(services: Services, caller: Caller): McpServer {
       title: 'Dokümanları listele',
       description:
         'Bilgi tabanındaki dokümanları başlık ve durumlarıyla listeler. backend/: genel/, flows/<alan>/, modules/, usecases/<modül>/. ' +
-        'frontend/: genel/, flows/<alan>/, api/ (GraphQL işlem kartları), ekranlar/ (rota kartları). Daraltmak için prefix ver (ör. frontend/flows/).',
-      inputSchema: {prefix: z.string().optional().describe('Ör. backend/genel/, frontend/flows/pvp/, frontend/ekranlar/')},
+        'frontend/: genel/, flows/<alan>/, api/ (GraphQL işlem kartları), ekranlar/ (rota kartları). ' +
+        'mac-motoru/: genel/, flows/<alan>/, metrikler/ (oyuncu statı kartları). Daraltmak için prefix ver (ör. frontend/flows/).',
+      inputSchema: {prefix: z.string().optional().describe('Ör. backend/genel/, frontend/flows/pvp/, mac-motoru/metrikler/')},
       annotations: readOnly,
     },
     async ({prefix}) =>

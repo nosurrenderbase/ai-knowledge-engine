@@ -1,10 +1,11 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import {generateCards, generateFrontendDocs, loadDocs} from '@ai-knowledge-engine/kb';
+import {generateCards, generateEngineDocs, generateFrontendDocs, loadDocs} from '@ai-knowledge-engine/kb';
 import {dropStampOnlyChanges, snapshotGenBlocks} from './cards.ts';
 import {parseNameStatus, relevantChanges, type Change} from './changes.ts';
 import {runClaude, type ClaudeOutcome, type ClaudeRequest, type Report} from './claude.ts';
-import type {Config} from './config.ts';
+import {ENGINE_AREA, type Config} from './config.ts';
+import {computeEngineImpact} from './engine-impact.ts';
 import {Git, type Merge} from './git.ts';
 import {planGroups} from './groups.ts';
 import {computeFrontendImpact} from './frontend-impact.ts';
@@ -171,6 +172,32 @@ async function prepareFrontend(cfg: Config, kb: Git, changes: Change[]): Promise
   return {impact, regeneratedCards, endpointFiles: []};
 }
 
+/**
+ * Match engine: the metric cards, the metric map and the play-style table are
+ * rebuilt from the engine; the impact list then adds the cards that changed
+ * and the flows using those stats.
+ */
+async function prepareEngine(cfg: Config, kb: Git, changes: Change[]): Promise<Prepared> {
+  const areaDir = path.join(cfg.kbRepo, cfg.area);
+  const before = new Set(loadDocs(areaDir).map(d => d.path));
+  const generated = generateEngineDocs({areaDir, sourceDir: cfg.codeRepo});
+  const regeneratedCards = await dropStampOnlyChanges(kb, cfg.area);
+  const prefix = `${cfg.area}/`;
+  const changedRel = regeneratedCards.map(f => f.slice(prefix.length));
+  const newCards = new Set(changedRel.filter(f => !before.has(f)));
+  const impact = computeEngineImpact(changes, loadDocs(areaDir), changedRel, newCards);
+  for (const orphan of generated.orphanCards) {
+    impact.docs.set(orphan, [...(impact.docs.get(orphan) ?? []), 'stat oyuncu verisinden kaldırıldı: "kaldırıldı" işaretle, linklerini kaldır']);
+  }
+  return {impact, regeneratedCards, endpointFiles: []};
+}
+
+async function prepare(cfg: Config, kb: Git, code: Git, job: Job, changes: Change[]): Promise<Prepared> {
+  if (cfg.area === 'frontend') return prepareFrontend(cfg, kb, changes);
+  if (cfg.area === ENGINE_AREA) return prepareEngine(cfg, kb, changes);
+  return prepareBackend(cfg, kb, code, job, changes);
+}
+
 /** Runs one job end to end: diff → cards → Claude → validation → commit → push. */
 export async function runJob(job: Job, deps: JobDeps): Promise<JobResult> {
   const {cfg, log} = deps;
@@ -190,8 +217,7 @@ export async function runJob(job: Job, deps: JobDeps): Promise<JobResult> {
     return {commitMessage: message, report: null, changedDocs: [], costUsd: 0};
   }
 
-  const {impact, regeneratedCards, endpointFiles} =
-    cfg.area === 'frontend' ? await prepareFrontend(cfg, kb, changes) : await prepareBackend(cfg, kb, code, job, changes);
+  const {impact, regeneratedCards, endpointFiles} = await prepare(cfg, kb, code, job, changes);
   log('info', 'etki listesi çıkarıldı', {head: head7, docs: impact.docs.size, cardModules: impact.cardModules});
   const genBlocks = snapshotGenBlocks(cfg.kbRepo, cfg.area);
 

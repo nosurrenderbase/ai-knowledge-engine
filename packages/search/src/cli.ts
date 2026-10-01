@@ -9,6 +9,7 @@ import {execFileSync} from 'node:child_process';
 import * as path from 'node:path';
 import {parseArgs} from 'node:util';
 import {createClient} from 'redis';
+import {areaLabel} from '@ai-knowledge-engine/kb';
 import {loadDotEnv, loadSearchConfig, REPO_ROOT} from './config.ts';
 import {readMeta, syncIndex} from './indexer.ts';
 import {search} from './search.ts';
@@ -28,7 +29,7 @@ const {values, positionals} = parseArgs({
 await loadDotEnv(process.env);
 const area = values.area!;
 const cfg = loadSearchConfig(process.env, area);
-const label = area === 'backend' ? undefined : area[0].toUpperCase() + area.slice(1);
+const label = areaLabel(area);
 const client = createClient({url: cfg.redisUrl, password: cfg.redisPassword});
 await client.connect();
 const voyage = new Voyage(cfg.voyage);

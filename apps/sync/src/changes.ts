@@ -27,15 +27,16 @@ export function parseNameStatus(text: string): Change[] {
   return changes;
 }
 
-const LOCK_FILES = new Set(['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'npm-shrinkwrap.json']);
+const LOCK_FILES = new Set(['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'npm-shrinkwrap.json', 'go.sum']);
 
 /**
  * Files that cannot change documented behaviour: tests, the code repo's own
- * markdown, lock files and CI configuration outside `.github/`.
+ * markdown, lock files, images and CI configuration outside `.github/`.
  */
 export function isIrrelevant(path: string): boolean {
   const name = path.slice(path.lastIndexOf('/') + 1);
-  if (/\.(spec|test)\.ts$/.test(name)) return true;
+  if (/\.(spec|test)\.ts$/.test(name) || name.endsWith('_test.go')) return true;
+  if (/\.(png|jpe?g|gif|svg|ico)$/i.test(name)) return true;
   if (path.startsWith('test/') || path.includes('/test/') || path.includes('/__tests__/')) return true;
   if (name.toLowerCase().endsWith('.md')) return true;
   if (LOCK_FILES.has(name)) return true;
