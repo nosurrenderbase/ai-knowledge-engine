@@ -29,7 +29,7 @@ export function SearchConsole() {
     <Space direction="vertical" style={{width: '100%'}} size="large">
       <Card>
         <Form layout="inline" onFinish={onSearch} initialValues={{limit: 10}}>
-          <Form.Item name="query" rules={[{required: true, message: 'Soru yaz'}]} style={{flex: 1, minWidth: 300}}>
+          <Form.Item name="query" rules={[{required: true, message: 'Soru yaz'}]} style={{flex: 1, minWidth: 'min(300px, 100%)'}}>
             <Input placeholder="ör. davet edene ne kadar para veriyoruz" allowClear />
           </Form.Item>
           <Form.Item name="area">
@@ -86,7 +86,7 @@ export function SearchConsole() {
         </Card>
       )}
 
-      <Drawer title={doc?.path} open={Boolean(doc)} onClose={() => setDoc(null)} size="large">
+      <Drawer title={doc?.path} open={Boolean(doc)} onClose={() => setDoc(null)} size="large" width="min(736px, 100vw)">
         <pre style={{whiteSpace: 'pre-wrap', fontSize: 13, margin: 0}}>{doc?.text}</pre>
       </Drawer>
     </Space>

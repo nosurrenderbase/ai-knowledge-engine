@@ -55,6 +55,7 @@ export function UsersTable({users}: {users: UserView[]}) {
         </Button>
       </Space>
       <Table<UserView>
+        scroll={{x: 'max-content'}}
         rowKey="id"
         dataSource={users}
         pagination={false}
@@ -62,6 +63,7 @@ export function UsersTable({users}: {users: UserView[]}) {
         expandable={{
           expandedRowRender: u => (
             <Table<TokenView>
+              scroll={{x: 'max-content'}}
               rowKey="prefix"
               size="small"
               pagination={false}
@@ -90,10 +92,10 @@ export function UsersTable({users}: {users: UserView[]}) {
         }}
         columns={[
           {title: 'Ad', dataIndex: 'name', render: (n, u) => (u.note ? `${n} (${u.note})` : n)},
-          {title: 'E-posta', dataIndex: 'email', render: e => e ?? '-'},
-          {title: 'Aktif token', dataIndex: 'activeTokens'},
-          {title: 'Son kullanım', dataIndex: 'lastUsedAt', render: fmt},
-          {title: '30 günde çağrı', dataIndex: 'calls30d'},
+          {title: 'E-posta', dataIndex: 'email', render: e => e ?? '-', responsive: ['lg']},
+          {title: 'Aktif token', dataIndex: 'activeTokens', responsive: ['md']},
+          {title: 'Son kullanım', dataIndex: 'lastUsedAt', render: fmt, responsive: ['md']},
+          {title: '30 günde çağrı', dataIndex: 'calls30d', responsive: ['sm']},
           {title: 'Durum', dataIndex: 'disabled', render: d => (d ? <Tag color="red">devre dışı</Tag> : <Tag color="green">etkin</Tag>)},
           {
             title: 'Oyun veritabanı',
