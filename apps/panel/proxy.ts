@@ -10,5 +10,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!login|api/health|_next/static|_next/image|favicon.ico).*)'],
+  // Icons and the manifest load before login too (the login tab shows the shield).
+  matcher: ['/((?!login|api/health|_next/static|_next/image|favicon.ico|icon|apple-icon|manifest.webmanifest|brand.png|maskable-512.png).*)'],
 };

@@ -19,13 +19,12 @@ const PAGES = [
 export function Brand({size = 'normal'}: {size?: 'normal' | 'large'}) {
   const large = size === 'large';
   return (
-    <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
-      <div className="kb-logo" style={large ? {width: 42, height: 42, fontSize: 15, borderRadius: 13} : undefined}>
-        EB
-      </div>
+    <div style={{display: 'flex', alignItems: 'center', gap: large ? 14 : 10}}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/brand.png" alt="Efsane Başkan" className="kb-brand" style={{height: large ? 64 : 40}} />
       <div style={{lineHeight: 1.25}}>
-        <div style={{fontWeight: 600, fontSize: large ? 18 : 15, letterSpacing: '-0.01em'}}>Efsane Başkan</div>
-        <div className="kb-stat-label" style={{fontSize: 12}}>Knowledge Engine</div>
+        <div style={{fontWeight: 600, fontSize: large ? 17 : 14, letterSpacing: '-0.01em'}}>Knowledge Engine</div>
+        <div className="kb-stat-label" style={{fontSize: 12}}>yönetim paneli</div>
       </div>
     </div>
   );
