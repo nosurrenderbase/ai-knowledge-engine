@@ -217,12 +217,17 @@ code,
   background: transparent !important;
   padding: 12px 0 12px 12px;
 }
+/* The glass panel is pinned to the window; the Sider itself only keeps its width in the layout. */
 .kb-sider-panel {
-  height: calc(100vh - 24px);
-  position: sticky;
+  position: fixed;
   top: 12px;
+  bottom: 12px;
+  left: 12px;
+  width: 232px;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  z-index: 10;
 }
 .kb-sider .ant-menu {
   background: transparent !important;
