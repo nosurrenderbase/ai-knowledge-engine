@@ -41,7 +41,9 @@ export function AreaChart({points, height = 180, unit = 'çağrı'}: {points: Po
   const area = line ? `${line} L${W},${H} L0,${H} Z` : '';
   return (
     <div style={{position: 'relative', height}}>
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" width="100%" height="100%" style={{display: 'block', overflow: 'visible'}}>
+      {/* Revealed left to right with a clip, not a stroke dash: dashes and non-scaling strokes
+          disagree on a stretched SVG and the line stopped half way on wide screens. */}
+      <svg className="kb-chart-reveal" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" width="100%" height="100%" style={{display: 'block', overflow: 'visible'}}>
         <defs>
           <linearGradient id={`fill-${id}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#0a84ff" stopOpacity="0.22" />
@@ -51,8 +53,8 @@ export function AreaChart({points, height = 180, unit = 'çağrı'}: {points: Po
         {[0.25, 0.5, 0.75].map(f => (
           <line key={f} x1="0" x2={W} y1={H * f} y2={H * f} stroke="rgba(15,23,42,0.06)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
         ))}
-        <path d={area} fill={`url(#fill-${id})`} className="kb-area-fill" />
-        <path d={line} fill="none" stroke="#0a84ff" strokeWidth="2" strokeLinecap="round" vectorEffect="non-scaling-stroke" pathLength={1} className="kb-area-line" />
+        <path d={area} fill={`url(#fill-${id})`} />
+        <path d={line} fill="none" stroke="#0a84ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
       </svg>
       {/* Hover targets and markers, in HTML so they keep their shape on any width. */}
       <div style={{position: 'absolute', inset: 0, display: 'flex'}}>
