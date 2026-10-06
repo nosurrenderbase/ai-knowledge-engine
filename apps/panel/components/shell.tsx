@@ -1,6 +1,6 @@
 'use client';
 
-import {BarChartOutlined, ClusterOutlined, DashboardOutlined, LogoutOutlined, SearchOutlined, TeamOutlined, UnorderedListOutlined} from '@ant-design/icons';
+import {BarChartOutlined, ClusterOutlined, DeploymentUnitOutlined, DashboardOutlined, LogoutOutlined, SearchOutlined, TeamOutlined, UnorderedListOutlined} from '@ant-design/icons';
 import {Button, Layout, Menu} from 'antd';
 import Link from 'next/link';
 import {usePathname} from 'next/navigation';
@@ -13,6 +13,7 @@ const PAGES = [
   {key: '/usage', icon: <BarChartOutlined />, label: 'Kullanım', short: 'Kullanım'},
   {key: '/queries', icon: <UnorderedListOutlined />, label: 'Sorular', short: 'Sorular'},
   {key: '/search', icon: <SearchOutlined />, label: 'Arama denemesi', short: 'Arama'},
+  {key: '/galaxy', icon: <DeploymentUnitOutlined />, label: 'Bilgi uzayı', short: 'Uzay'},
   {key: '/system', icon: <ClusterOutlined />, label: 'Sistem', short: 'Sistem'},
 ];
 

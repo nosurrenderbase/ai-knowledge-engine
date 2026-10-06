@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "@ai-knowledge-engine/accounts": "*",
-    "@ai-knowledge-engine/settings": "*"
+    "@ai-knowledge-engine/search": "*",
+    "@ai-knowledge-engine/settings": "*",
+    "redis": "^5.8.0"
   }
 }

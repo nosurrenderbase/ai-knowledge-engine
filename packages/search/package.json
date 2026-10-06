@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@ai-knowledge-engine/kb": "*",
-    "redis": "^5.8.0"
+    "redis": "^5.8.0",
+    "umap-js": "^1.4.0"
   },
   "exports": {
     ".": "./src/index.ts"

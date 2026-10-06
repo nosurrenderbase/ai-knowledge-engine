@@ -4,3 +4,4 @@ export {DEFAULT_FUSION, filterQuery, hybridHits, search, type Fusion, type Searc
 export {createIndexArgs, dropIndex, ensureIndex, rrf, textQuery, type Hit, type IndexSpec, type RedisClient} from './search-index.ts';
 export {loadDotEnv, loadSearchConfig, REPO_ROOT, searchConfigured, type SearchConfig} from './config.ts';
 export {Voyage, VoyageError, embeddingsUrl, type Embedder, type EmbedResult, type InputType, type VoyageConfig} from './voyage.ts';
+export {GALAXY_KEY, layout, loadVectors, project, readGalaxy, seeded, updateGalaxy, type Galaxy, type GalaxyPoint} from './galaxy.ts';
