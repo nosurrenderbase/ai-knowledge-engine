@@ -27,6 +27,7 @@ describe('findSecrets', () => {
     ['password: "hunter2hunter2"', 'parola ataması'],
     ['iletişim: ahmet.yilmaz@example.com', 'e-posta'],
     ['sunucu 10.12.3.4 adresinde', 'IP adresi'],
+    ['iç ağ 192.168.100.200 üzerinden', 'IP adresi'],
     ['TC: 10000000146', 'TC kimlik numarası'],
   ];
   for (const [line, kind] of cases) {
@@ -40,6 +41,7 @@ describe('findSecrets', () => {
       'Sürüm v1.2.3.4 ve curlimages/curl:8.10.1 imajı; yerel adres 127.0.0.1.',
       'Hata kodu `PVP_DAILY_LIMIT_REACHED`, süre 86400000 ms, tutar 10000000000.',
       'password alanı loglardan silinir.',
+      'Android RAM eşiği 8.000.000.000 bayt; ödül 1.050.000 LD.',
     ]) {
       assert.deepEqual(findSecrets(line), [], line);
     }

@@ -31,6 +31,8 @@ function hasIp(line: string): boolean {
   for (const m of line.matchAll(IPV4)) {
     const octets = m.slice(1, 5).map(Number);
     if (octets.some(o => o > 255)) continue;
+    // Turkish thousands ("8.000.000.000 bayt", "1.050.000"): a zero-padded group never appears in a written IP.
+    if (m.slice(1, 5).some(g => g.length > 1 && g.startsWith('0'))) continue;
     // Version numbers ("v1.2.3.4", "8.10.1.0") are not addresses; loopback/unspecified are harmless.
     const before = line.slice(Math.max(0, m.index - 1), m.index);
     if (/[vV]/.test(before)) continue;
